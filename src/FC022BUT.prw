@@ -50,6 +50,47 @@ Static Function Fluxo2Excel( aParam )
 	Local cNat        := ''
 	Local nX          := 0
 	Local lExecuta    := .T.
+	Local cMasc       := GetMv( 'MV_MASCNAT' )
+	Local aMasc       := {}
+	Local nLenMasc    := 0
+	Local nLenNat     := 0
+	Local aRet        := {}
+
+	//Popula array com tamanho dos níveis das naturezas
+
+	cMasc := AllTrim( cMasc )
+
+	For nX := 1 To Len( cMasc )
+
+		aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
+
+	Next nX
+
+	// Verifica a quantidade níveis do Fluxo
+	If ParamBox({{1,'Quantidade de Níveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+
+		If aRet[1] > Len( aMasc )
+
+			nLenMasc := Len( aMasc )
+
+		Else
+
+			nLenMasc := aRet[1]
+
+		End If
+
+	Else
+
+		nLenMasc := Len( aMasc )
+
+	End
+
+	//Define o Tamanho limite do Código da Natureza
+	For nX := 1 To nLenMasc
+
+		nLenNat += aMasc[nX]
+
+	Next nX
 
 	lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sintético
 	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
@@ -107,15 +148,22 @@ Static Function Fluxo2Excel( aParam )
 
 		ElseIf MV_PAR05 = 1 .And. 'REALIZADO' $ cCabec .And. ! 'TOTAL' $ cCabec .And. ! '01/' + StrZero( Month( MV_PAR03 ) + 1, 2 ) $ cCabec
 
+			cCabec := StrTran( cCabec, 'REALIZADO', '' )
+			cCabec := AllTrim( StrTokArr2(cCabec,'/', .T.)[1] )
+
 			aAdd( aCabec, cCabec )
 
 		ElseIf MV_PAR05 = 3 .And. 'REALIZADO' $ cCabec .And. ! 'TOTAL' $ cCabec .And. nMesBase > nMesCol .And. ! cValToChar( Year( MV_PAR03 ) + 1 ) $ cCabec
 
-			aAdd( aCabec, cCabec )
+			cCabec := AllTrim( StrTran( cCabec, '/' + cValToChar( Year( MV_PAR03 ) ), '' ) )
+
+			aAdd( aCabec, StrTokArr2(cCabec,' ', .T.)[2] + ' - ' + StrTokArr2(cCabec,' ', .T.)[1] )
 
 		ElseIf MV_PAR05 = 3 .And. 'ORCADO' $ cCabec .And. ! 'TOTAL' $ cCabec .And. nMesBase <= nMesCol .And. ! cValToChar( Year( MV_PAR03 ) + 1 ) $ cCabec
 
-			aAdd( aCabec, StrTran( cCabec, 'ORCADO', 'PLANEJADO' ) )
+			cCabec := AllTrim( StrTran( cCabec, '/' + cValToChar( Year( MV_PAR03 ) ), '' ) )
+
+			aAdd( aCabec, StrTran( StrTokArr2(cCabec,' ', .T.)[2] + ' - ' + StrTokArr2(cCabec,' ', .T.)[1], 'ORCADO', 'PLANEJADO' ) )
 
 		End If
 
@@ -136,6 +184,22 @@ Static Function Fluxo2Excel( aParam )
 
 		// Se a linha não corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
 		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
+
+		// Verifica se a linha é uma natureza se tiver um hífen separando o código do nome da natureza
+		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
+
+			// Se Natureza estiver em nível superior ao definido pelo usuário pula para próxima
+			If Len( AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) ) > nLenNat
+
+				(cAlias)->( DbSkip() )
+
+				LOOP
+
+			End If
+
+			cNat := AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) + ' - ' + AllTrim( StrTokArr2(cNat,'-', .T.)[2] )
+
+		End If
 
 		If 'SALDOS INICIAIS' $ cNat
 
@@ -165,6 +229,8 @@ Static Function Fluxo2Excel( aParam )
 
 
 		// Popula os arrays com saldos da naturezas de entrada e saída
+
+		// Fluxo Diário
 		If MV_PAR05 = 1
 
 			For nX := 1 To Day( LastDate ( MV_PAR04 ) )
@@ -173,6 +239,7 @@ Static Function Fluxo2Excel( aParam )
 
 			Next nX
 
+			// Fluxo Anual
 		ElseIf MV_PAR05 = 3
 
 			For nX := 1 To 12
@@ -238,7 +305,7 @@ Static Function Fluxo2Excel( aParam )
 	RestArea( aArea )
 
 	// Executa função para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
-	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
+	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, aMasc[1] )
 
 Return
 
@@ -300,18 +367,35 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 @param aSldLiquido, array, Saldos totais Líquido da Naturezas
 @param aSldInicial, array, Saldos totais de Iniciais da Naturezas
 @param aSldFinal, array, Saldos totais de Finais da Naturezas
+@param nLenPriNat, array, Tamanho do código das naturezas sintéticas de primeiro nível
 /*/
-Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
+Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, nLenPriNat )
 
 	Local cArquivo   := GetTempPath() + 'Fluxo2Excel.xml'
-	Local oFwMsExcel := FwMsExcel():New()
+	Local oFwMsExcel := FwMsExcelEx():New()
 	Local oMsExcel   := MsExcel():New()
 	Local nX         := 0
 	Local nAlign     := 0
 	Local nFormat    := 0
+	Local cDiario    := 'DIARIO ' + MesExtenso( Month( MV_PAR03 ) ) + '/' + cValToChar( Year( MV_PAR03 ) )
+	Local cAnual     := 'ANUAL ' + cValToChar( Year( MV_PAR03 ) )
+	Local cWorkSheet := If( MV_PAR05 = 1, cDiario, cAnual )
+	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
+	Local aCelStyle  := {}
 
-	oFwMsExcel:AddworkSheet( 'Fluxo2Excel' )
-	oFwMsExcel::AddTable ( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza' )
+	For nX := 1 To Len( aCabec )
+
+		aAdd( aCelStyle, nX )
+
+	Next nX
+
+	oFwMsExcel:SetFont( 'Calibri' )
+	oFwMsExcel:SetFrGeneralColor( '#000000' )
+	oFwMsExcel:SetBgGeneralColor( '#FFFFFF' )
+	oFwMsExcel:SetFontSize(10)
+
+	oFwMsExcel:AddworkSheet( cWorkSheet )
+	oFwMsExcel::AddTable ( cWorkSheet, cTable  )
 
 	For nX := 1 to Len( aCabec )
 
@@ -327,31 +411,58 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 		End If
 
-		oFWMSExcel:AddColumn( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aCabec[ nX ], nAlign, nFormat, .F. )
+		oFWMSExcel:AddColumn( cWorkSheet, cTable, aCabec[ nX ], nAlign, nFormat, .F. )
 
 	Next nX
 
-	oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aIngresso[1] )
+	oFWMSExcel:SetCelSizeFont(8)
 
+	oFWMSExcel:SetCelBold(.T.)
+	oFWMSExcel:SetCelBgColor( '#DAEEF3' )
+	oFWMSExcel:AddRow( cWorkSheet, cTable, aIngresso[1], aCelStyle )
+
+	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
 	For nX := 1 To Len( aLinEntrada )
 
-		oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aLinEntrada[nX] )
+		oFWMSExcel:SetCelBold(.F.)
+		If Len( AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] ) ) == nLenPriNat
+
+			oFWMSExcel:SetCelBold(.T.)
+
+		End If
+
+		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
 
 	Next nX
 
-	oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aDesembolso[1] )
+	oFWMSExcel:SetCelBold(.T.)
+	oFWMSExcel:SetCelBgColor(  '#DAEEF3' )
+	oFWMSExcel:AddRow( cWorkSheet, cTable, aDesembolso[1], aCelStyle )
 
+	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
 	For nX := 1 To Len( aLinSaida )
 
-		oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aLinSaida[nX] )
+		oFWMSExcel:SetCelBold(.F.)
+		If Len( AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] ) ) == nLenPriNat
+
+			oFWMSExcel:SetCelBold(.T.)
+
+		End If
+
+		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
 
 	Next nX
 
-	oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aSldLiquido[1] )
+	oFWMSExcel:SetCelBold(.T.)
 
-	oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aSldInicial[1] )
+	oFWMSExcel:SetCelBgColor( '#DAEEF3' )
+	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldLiquido[1], aCelStyle )
 
-	oFWMSExcel:AddRow( 'Fluxo2Excel', 'Fluxo de Caixa Por Natureza', aSldFinal[1] )
+	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
+	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldInicial[1], aCelStyle )
+
+	oFWMSExcel:SetCelBgColor( '#FFFFCC' )
+	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldFinal[1], aCelStyle )
 
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
