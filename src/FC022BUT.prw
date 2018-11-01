@@ -1,13 +1,13 @@
 #INCLUDE 'TOTVS.CH'
 
 /*/{Protheus.doc} FC022BUT
-Adiciona op√ß√£o em A√ß√µes Relacionadas da rotina de Fluxo de Caixa por Natureza - FINC022
+Adiciona opÁ„o em AÁıes Relacionadas da rotina de Fluxo de Caixa por Natureza - FINC022
 @project MAN0000038865_EF_002
-@type function Rotina Espec√≠fica
+@type function Rotina EspecÌfica
 @version P12
 @author TOTVS
 @since 30/10/2018
-@return array, Retorna um array com a(s) nova(s) op√ß√£o(√µes) que ser√°(√£o) adicionada(s) ao bot√£o A√ß√µes relacionadas
+@return array, Retorna um array com a(s) nova(s) opÁ„o(ıes) que ser·(„o) adicionada(s) ao bot„o AÁıes relacionadas
 /*/
 User Function FC022BUT()
 
@@ -16,18 +16,18 @@ User Function FC022BUT()
 	Local bFluxo2Excel := { || Fluxo2Excel( aParam ) }
 	Local bMsAguarde   := { || MsAguarde( bFluxo2Excel, 'Executando ...', 'Mensagem...',.F. ) }
 
-	aUsButtons := { { "", bMsAguarde, "Gera em excel os fluxos de caixa di√°rio e anual para o Portal da Transpar√™ncia", "Portal Transpar√™ncia" } }
+	aUsButtons := { { "", bMsAguarde, "Gera em excel os fluxos de caixa di·rio e anual para o Portal da TransparÍncia", "Portal TransparÍncia" } }
 
 Return aUsButtons
 
 /*/{Protheus.doc} Fluxo2Excel
-Gera Planilha Excel com base na tabela tempor√°ria descrita no PARAMIXB[2]
-A planilha se baseia quando o Per√≠odo √© Di√°rio ou Mensal, em outro per√≠odo n√£o gera.
-Tamb√©m gera somente quando o modelo for Sint√©tico.
-Quando o Per√≠odo for Di√°rio a data inicial e final deve compreender o primeiro e √∫ltimo dia do M√™s
-Quando o Per√≠odo for Mensal a data inicial e final deve compreender o primeiro e √∫ltimo dia do Ano
+Gera Planilha Excel com base na tabela tempor·ria descrita no PARAMIXB[2]
+A planilha se baseia quando o PerÌodo È Di·rio ou Mensal, em outro perÌodo n„o gera.
+TambÈm gera somente quando o modelo for SintÈtico.
+Quando o PerÌodo for Di·rio a data inicial e final deve compreender o primeiro e ˙ltimo dia do MÍs
+Quando o PerÌodo for Mensal a data inicial e final deve compreender o primeiro e ˙ltimo dia do Ano
 @project MAN0000038865_EF_002
-@type function Rotina Espec√≠fica
+@type function Rotina EspecÌfica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -50,65 +50,33 @@ Static Function Fluxo2Excel( aParam )
 	Local aSldFinal   := {}
 	Local aColunas    := {}
 	Local cNat        := ''
+	Local cNatAux     := ''
 	Local nX          := 0
 	Local lExecuta    := .T.
-	//Local cMasc       := GetMv( 'MV_MASCNAT' )
-	//Local aMasc       := {}
-	//Local nLenMasc    := 0
-	//Local nLenNat     := 0
-	//Local aRet        := {}
+	Local aRet        := {}
 
-	//Popula array com tamanho dos n√≠veis das naturezas
+	// Verifica a quantidade nÌveis do Fluxo
+	If ! ParamBox({{1,'Quantidade de NÌveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
 
-	//cMasc := AllTrim( cMasc )
+		aRet := {999}
 
-	//For nX := 1 To Len( cMasc )
+	End If
 
-	//aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
-
-	//Next nX
-
-	// Verifica a quantidade n√≠veis do Fluxo
-	//If ParamBox({{1,'Quantidade de N√≠veis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
-
-	//If aRet[1] > Len( aMasc )
-
-	//nLenMasc := Len( aMasc )
-
-	//Else
-
-	//nLenMasc := aRet[1]
-
-	//End If
-
-	//Else
-
-	//nLenMasc := Len( aMasc )
-
-	//End
-
-	//Define o Tamanho limite do C√≥digo da Natureza
-	//For nX := 1 To nLenMasc
-
-	//nLenNat += aMasc[nX]
-
-	//Next nX
-
-	//lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sint√©tico
-	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Per√≠odos em Dias ou Meses
+	//lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo SintÈtico
+	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra PerÌodos em Dias ou Meses
 
 	If MV_PAR05 == 1
 
-		// Se Per√≠odo em Dias Verifica se a Data Inicial √© o Primeiro dia do M√™s e
-		// se a Data Final √© o √öltimo dia do m√™s
+		// Se PerÌodo em Dias Verifica se a Data Inicial È o Primeiro dia do MÍs e
+		// se a Data Final È o ⁄ltimo dia do mÍs
 
 		lExecuta := lExecuta .And. FirstDate( MV_PAR03 ) == MV_PAR03
 		lExecuta := lExecuta .And. LastDate ( MV_PAR04 ) == MV_PAR04
 
 	ElseIf MV_PAR05 == 3
 
-		// Se Per√≠odo em Meses Verifica se a Data Inicial √© o Primeiro dia do Ano e
-		// se a Data Final √© o √öltimo dia do Ano
+		// Se PerÌodo em Meses Verifica se a Data Inicial È o Primeiro dia do Ano e
+		// se a Data Final È o ⁄ltimo dia do Ano
 
 		lExecuta := lExecuta .And. Day  ( MV_PAR03 ) == 01
 		lExecuta := lExecuta .And. Month( MV_PAR03 ) == 01
@@ -117,17 +85,17 @@ Static Function Fluxo2Excel( aParam )
 
 	End If
 
-	If ! lExecuta // Se Alguma condi√ß√£o n√£o for atendida exibe mensagem para o usu√°rio e encerra a fun√ß√£o
+	If ! lExecuta // Se Alguma condiÁ„o n„o for atendida exibe mensagem para o usu·rio e encerra a funÁ„o
 
 		AutoGrLog( 'Permitido Executar Apenas para:' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Fluxo sint√©tico.' )
+		AutoGrLog( '- Fluxo sintÈtico.' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Per√≠odo em Dias ou Meses.')
+		AutoGrLog( '- PerÌodo em Dias ou Meses.')
 		AutoGrLog( '' )
-		AutoGrLog( '- Se per√≠odo em dias a data inicial deve ser o primeiro dia do m√™s e a data final o √∫ltimo dia do m√™s.' )
+		AutoGrLog( '- Se perÌodo em dias a data inicial deve ser o primeiro dia do mÍs e a data final o ˙ltimo dia do mÍs.' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Se per√≠odo em meses a data inicial deve ser o primeiro dia do ano e a data final o √∫ltimo dia do ano.' )
+		AutoGrLog( '- Se perÌodo em meses a data inicial deve ser o primeiro dia do ano e a data final o ˙ltimo dia do ano.' )
 
 		MostraErro()
 
@@ -135,12 +103,12 @@ Static Function Fluxo2Excel( aParam )
 
 	End If
 
-	MsProcTxt( 'Montando Cabe√ßalho.' )
+	MsProcTxt( 'Montando CabeÁalho.' )
 
 	// Populando o Array com os nomes das colunas da planilha a ser gerada
-	// Se o per√≠odo for Di√°rio considera a coluna de Naturesas e as colunas de saldo realizado de cada dia do m√™s
-	// Se o per√≠odo for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao M√™s corrente (dDataBase) e
-	// as colunas de saldo Or√ßado do m√™s corrente e dos meses posteriores a este.
+	// Se o perÌodo for Di·rio considera a coluna de Naturesas e as colunas de saldo realizado de cada dia do mÍs
+	// Se o perÌodo for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao MÍs corrente (dDataBase) e
+	// as colunas de saldo OrÁado do mÍs corrente e dos meses posteriores a este.
 	For nX := 1 To Len( oFluxo:aColumns )
 
 		cCabec  := AllTrim( Upper( NoAcento( oFluxo:aColumns[ nX ]:cTitle ) ) )
@@ -173,7 +141,7 @@ Static Function Fluxo2Excel( aParam )
 
 	Next nX
 
-	// Somente se o per√≠odo for Mensal inclui coluna de Total
+	// Somente se o perÌodo for Mensal inclui coluna de Total
 	If MV_PAR05 = 3
 
 		aAdd( aCabec, 'TOTAL' )
@@ -181,28 +149,31 @@ Static Function Fluxo2Excel( aParam )
 	End If
 
 	// Populando os array correspondentes as linhas de Saldo de Ingressos,
-	// Entradas, Saldo de Desembolso, Linha de Sa√≠da, Saldo L√≠quido, Saldo Inicial, Saldo Final
+	// Entradas, Saldo de Desembolso, Linha de SaÌda, Saldo LÌquido, Saldo Inicial, Saldo Final
 	(cAlias)->( DbGoTop() )
 
 	Do While ! (cAlias)->( Eof() )
 
-		// Se a linha n√£o corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
+		// Se a linha n„o corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
 		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
 
 		MsProcTxt( 'Montando Linhas: ' + cNat )
 		ProcessMessage()
 
-		// Verifica se a linha √© uma natureza se tiver um h√≠fen separando o c√≥digo do nome da natureza
+		// Verifica se a linha È uma natureza se tiver um hÌfen separando o cÛdigo do nome da natureza
 		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
 
-			// Se Natureza estiver em n√≠vel superior ao definido pelo usu√°rio pula para pr√≥xima
-			/*If Len( AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) ) > nLenNat
+			// Se Natureza estiver em nÌvel superior ao definido pelo usu·rio pula para prÛxima
 
-			(cAlias)->( DbSkip() )
+			cNatAux := AllTrim( StrTokArr2(cNat,'-', .T.)[1] )
 
-			LOOP
+			If Len( StrTokArr2(cNat,'.', .T.)[1] ) > aRet[1]
 
-			End If*/
+				(cAlias)->( DbSkip() )
+
+				LOOP
+
+			End If
 
 			cNat := AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) + ' - ' + AllTrim( StrTokArr2(cNat,'-', .T.)[2] )
 
@@ -222,7 +193,7 @@ Static Function Fluxo2Excel( aParam )
 
 		ElSeIf 'SALDO OPERACIONAL' $ cNat
 
-			aAdd( aColunas, 'L√çQUIDO' )
+			aAdd( aColunas, 'LÕQUIDO' )
 
 		ElSeIf 'SALDO FINAL' $ cNat
 
@@ -235,9 +206,9 @@ Static Function Fluxo2Excel( aParam )
 		End If
 
 
-		// Popula os arrays com saldos da naturezas de entrada e sa√≠da
+		// Popula os arrays com saldos da naturezas de entrada e saÌda
 
-		// Fluxo Di√°rio
+		// Fluxo Di·rio
 		If MV_PAR05 = 1
 
 			For nX := 1 To Day( LastDate ( MV_PAR04 ) )
@@ -267,7 +238,7 @@ Static Function Fluxo2Excel( aParam )
 
 		End If
 
-		// Popula os array¬¥s com os totais do per√≠do
+		// Popula os array¥s com os totais do perÌdo
 		If 'SALDOS INICIAIS' $ cNat
 
 			aAdd( aSldInicial, aClone( aColunas ) )
@@ -311,20 +282,20 @@ Static Function Fluxo2Excel( aParam )
 	RestArea( aAreaAlias )
 	RestArea( aArea )
 
-	// Executa fun√ß√£o para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
-	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, /*aMasc[1]*/ )
+	// Executa funÁ„o para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
+	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 
 Return
 
 /*/{Protheus.doc} MesNum
-Fun√ß√£o que localiza no nome da coluna o m√™s correspondente e retorna o n√∫mero deste m√™s
+FunÁ„o que localiza no nome da coluna o mÍs correspondente e retorna o n˙mero deste mÍs
 @project MAN0000038865_EF_002
-@type function Rotina Espec√É¬≠fica
+@type function Rotina Espec√≠fica
 @version P12
 @author TOTVS
 @since 30/10/2018
 @param cColName, characters, Nome da Coluna
-@return return, N√∫mero correspondente ao m√™s localizado no nome da coluna
+@return return, N˙mero correspondente ao mÍs localizado no nome da coluna
 /*/
 Static Function MesNum( cColName )
 
@@ -362,7 +333,7 @@ Return nRet
 /*/{Protheus.doc} ToExcel
 Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de Caixa
 @project MAN0000038865_EF_002
-@type function Rotina Espec√É¬≠fica
+@type function Rotina Espec√≠fica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -370,13 +341,12 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 @param aIngresso, array, Saldos totais de Ingressos da Naturezas
 @param aLinEntrada, array, Saldos de Entradas na Natureza
 @param aDesembolso, array, Saldos totais de Desembolso da Naturezas
-@param aLinSaida, array, Saldos de Sa√≠das na Natureza
-@param aSldLiquido, array, Saldos totais L√≠quido da Naturezas
+@param aLinSaida, array, Saldos de SaÌdas na Natureza
+@param aSldLiquido, array, Saldos totais LÌquido da Naturezas
 @param aSldInicial, array, Saldos totais de Iniciais da Naturezas
 @param aSldFinal, array, Saldos totais de Finais da Naturezas
-@param nLenPriNat, array, Tamanho do c√≥digo das naturezas sint√©ticas de primeiro n√≠vel
 /*/
-Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, nLenPriNat )
+Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 
 	Local cArquivo   := cGetFile(,,,,,,.F.) + '.xml' //GetTempPath() + 'Fluxo2Excel.xml'
 	Local oFwMsExcel := FwMsExcelEx():New()
@@ -389,6 +359,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cWorkSheet := If( MV_PAR05 = 1, cDiario, cAnual )
 	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
 	Local aCelStyle  := {}
+	Local cNatAux    := ''
 
 	For nX := 1 To Len( aCabec )
 
@@ -433,11 +404,14 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	For nX := 1 To Len( aLinEntrada )
 
 		oFWMSExcel:SetCelBold(.F.)
-		//If Len( AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-		//oFWMSExcel:SetCelBold(.T.)
+		cNatAux := AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] )
 
-		//End If
+		If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+
+			oFWMSExcel:SetCelBold(.T.)
+
+		End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )
@@ -454,11 +428,14 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	For nX := 1 To Len( aLinSaida )
 
 		oFWMSExcel:SetCelBold(.F.)
-		//If Len( AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-		//oFWMSExcel:SetCelBold(.T.)
+		cNatAux := AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] )
 
-		//End If
+		If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+
+			oFWMSExcel:SetCelBold(.T.)
+
+		End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )
@@ -483,7 +460,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
 
-	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Aten√ß√£o !!!' )
+	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'AtenÁ„o !!!' )
 
 	//oMsExcel:WorkBooks:Open( cArquivo )
 	//oMsExcel:SetVisible( .T. )
