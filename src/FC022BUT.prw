@@ -11,10 +11,12 @@ Adiciona opção em Ações Relacionadas da rotina de Fluxo de Caixa por Natureza - 
 /*/
 User Function FC022BUT()
 
-	Local aParam := aClone( PARAMIXB )
-	Local aUsButtons := {}
+	Local aParam       := aClone( PARAMIXB )
+	Local aUsButtons   := {}
+	Local bFluxo2Excel := { || Fluxo2Excel( aParam ) }
+	Local bMsAguarde   := { || MsAguarde( bFluxo2Excel, 'Executando ...', 'Mensagem...',.F. ) }
 
-	aUsButtons := { { "", {|| Fluxo2Excel( aParam ) }, "Comentário ....", "Lei XYZ/2018" } }
+	aUsButtons := { { "", bMsAguarde, "Comentário ....", "Lei XYZ/2018" } }
 
 Return aUsButtons
 
@@ -50,47 +52,47 @@ Static Function Fluxo2Excel( aParam )
 	Local cNat        := ''
 	Local nX          := 0
 	Local lExecuta    := .T.
-	Local cMasc       := GetMv( 'MV_MASCNAT' )
-	Local aMasc       := {}
-	Local nLenMasc    := 0
-	Local nLenNat     := 0
-	Local aRet        := {}
+	//Local cMasc       := GetMv( 'MV_MASCNAT' )
+	//Local aMasc       := {}
+	//Local nLenMasc    := 0
+	//Local nLenNat     := 0
+	//Local aRet        := {}
 
 	//Popula array com tamanho dos níveis das naturezas
 
-	cMasc := AllTrim( cMasc )
+	//cMasc := AllTrim( cMasc )
 
-	For nX := 1 To Len( cMasc )
+	//For nX := 1 To Len( cMasc )
 
-		aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
+		//aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
 
-	Next nX
+	//Next nX
 
 	// Verifica a quantidade níveis do Fluxo
-	If ParamBox({{1,'Quantidade de Níveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+	//If ParamBox({{1,'Quantidade de Níveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
 
-		If aRet[1] > Len( aMasc )
+		//If aRet[1] > Len( aMasc )
 
-			nLenMasc := Len( aMasc )
+			//nLenMasc := Len( aMasc )
 
-		Else
+		//Else
 
-			nLenMasc := aRet[1]
+			//nLenMasc := aRet[1]
 
-		End If
+		//End If
 
-	Else
+	//Else
 
-		nLenMasc := Len( aMasc )
+		//nLenMasc := Len( aMasc )
 
-	End
+	//End
 
 	//Define o Tamanho limite do Código da Natureza
-	For nX := 1 To nLenMasc
+	//For nX := 1 To nLenMasc
 
-		nLenNat += aMasc[nX]
+		//nLenNat += aMasc[nX]
 
-	Next nX
+	//Next nX
 
 	lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sintético
 	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
@@ -132,13 +134,15 @@ Static Function Fluxo2Excel( aParam )
 		Return
 
 	End If
+    
+	MsProcTxt( 'Montando Cabeçalho.' )
 
 	// Populando o Array com os nomes das colunas da planilha a ser gerada
 	// Se o período for Diário considera a coluna de Naturesas e as colunas de saldo realizado de cada dia do mês
 	// Se o período for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao Mês corrente (dDataBase) e
 	// as colunas de saldo Orçado do mês corrente e dos meses posteriores a este.
 	For nX := 1 To Len( oFluxo:aColumns )
-
+        
 		cCabec  := AllTrim( Upper( NoAcento( oFluxo:aColumns[ nX ]:cTitle ) ) )
 		nMesCol := MesNum( cCabec )
 
@@ -184,18 +188,20 @@ Static Function Fluxo2Excel( aParam )
 
 		// Se a linha não corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
 		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
+		
+		MsProcTxt( 'Montando Linhas: ' + cNat )    
 
 		// Verifica se a linha é uma natureza se tiver um hífen separando o código do nome da natureza
 		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
 
 			// Se Natureza estiver em nível superior ao definido pelo usuário pula para próxima
-			If Len( AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) ) > nLenNat
+			/*If Len( AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) ) > nLenNat
 
 				(cAlias)->( DbSkip() )
 
 				LOOP
 
-			End If
+			End If*/
 
 			cNat := AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) + ' - ' + AllTrim( StrTokArr2(cNat,'-', .T.)[2] )
 
@@ -305,7 +311,7 @@ Static Function Fluxo2Excel( aParam )
 	RestArea( aArea )
 
 	// Executa função para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
-	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, aMasc[1] )
+	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, /*aMasc[1]*/ )
 
 Return
 
@@ -371,13 +377,13 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 /*/
 Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, nLenPriNat )
 
-	Local cArquivo   := GetTempPath() + 'Fluxo2Excel.xml'
+	Local cArquivo   := cGetFile( , 'Informe a pasta onde a planilha será salva.',,,.T., GETF_RETDIRECTORY , .F. ) + GetNextAlias() + '.xml'//GetTempPath() + 'Fluxo2Excel.xml'
 	Local oFwMsExcel := FwMsExcelEx():New()
 	Local oMsExcel   := MsExcel():New()
 	Local nX         := 0
 	Local nAlign     := 0
 	Local nFormat    := 0
-	Local cDiario    := 'DIARIO ' + MesExtenso( Month( MV_PAR03 ) ) + '/' + cValToChar( Year( MV_PAR03 ) )
+	Local cDiario    := 'DIARIO ' + Upper( MesExtenso( Month( MV_PAR03 ) ) ) + '/' + cValToChar( Year( MV_PAR03 ) )
 	Local cAnual     := 'ANUAL ' + cValToChar( Year( MV_PAR03 ) )
 	Local cWorkSheet := If( MV_PAR05 = 1, cDiario, cAnual )
 	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
@@ -420,36 +426,40 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	oFWMSExcel:SetCelBold(.T.)
 	oFWMSExcel:SetCelBgColor( '#DAEEF3' )
 	oFWMSExcel:AddRow( cWorkSheet, cTable, aIngresso[1], aCelStyle )
+	MsProcTxt( 'Montando Planilha: ' + aIngresso[1,1] )
 
 	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
 	For nX := 1 To Len( aLinEntrada )
 
 		oFWMSExcel:SetCelBold(.F.)
-		If Len( AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] ) ) == nLenPriNat
+		//If Len( AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-			oFWMSExcel:SetCelBold(.T.)
+			//oFWMSExcel:SetCelBold(.T.)
 
-		End If
+		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
+		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )    
 
 	Next nX
 
 	oFWMSExcel:SetCelBold(.T.)
 	oFWMSExcel:SetCelBgColor(  '#DAEEF3' )
 	oFWMSExcel:AddRow( cWorkSheet, cTable, aDesembolso[1], aCelStyle )
+	MsProcTxt( 'Montando Planilha: ' + aDesembolso[1,1] )
 
 	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
 	For nX := 1 To Len( aLinSaida )
 
 		oFWMSExcel:SetCelBold(.F.)
-		If Len( AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] ) ) == nLenPriNat
+		//If Len( AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-			oFWMSExcel:SetCelBold(.T.)
+			//oFWMSExcel:SetCelBold(.T.)
 
-		End If
+		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
+		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )    
 
 	Next nX
 
@@ -457,18 +467,21 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 	oFWMSExcel:SetCelBgColor( '#DAEEF3' )
 	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldLiquido[1], aCelStyle )
+	MsProcTxt( 'Montando Planilha: ' + aSldLiquido[1,1] )
 
 	oFWMSExcel:SetCelBgColor( '#FFFFFF' )
 	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldInicial[1], aCelStyle )
+	MsProcTxt( 'Montando Planilha: ' + aSldInicial[1,1] )
 
 	oFWMSExcel:SetCelBgColor( '#FFFFCC' )
 	oFWMSExcel:AddRow( cWorkSheet, cTable, aSldFinal[1], aCelStyle )
+	MsProcTxt( 'Montando Planilha: ' + aSldFinal[1,1] )
 
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
 
-	oMsExcel:WorkBooks:Open( cArquivo )
-	oMsExcel:SetVisible( .T. )
-	oMsExcel:Destroy()
+	//oMsExcel:WorkBooks:Open( cArquivo )
+	//oMsExcel:SetVisible( .T. )
+	//oMsExcel:Destroy()
 
 Return
