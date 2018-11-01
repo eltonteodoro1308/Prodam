@@ -94,7 +94,7 @@ Static Function Fluxo2Excel( aParam )
 
 	//Next nX
 
-	lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sintético
+	//lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sintético
 	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 
 	If MV_PAR05 == 1
@@ -189,7 +189,8 @@ Static Function Fluxo2Excel( aParam )
 		// Se a linha não corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
 		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
 		
-		MsProcTxt( 'Montando Linhas: ' + cNat )    
+		MsProcTxt( 'Montando Linhas: ' + cNat )
+		ProcessMessage()    
 
 		// Verifica se a linha é uma natureza se tiver um hífen separando o código do nome da natureza
 		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
@@ -377,7 +378,7 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 /*/
 Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal, nLenPriNat )
 
-	Local cArquivo   := cGetFile( , 'Informe a pasta onde a planilha será salva.',,,.T., GETF_RETDIRECTORY , .F. ) + GetNextAlias() + '.xml'//GetTempPath() + 'Fluxo2Excel.xml'
+	Local cArquivo   := cGetFile(,,,,,,.F.) + '.xml' //GetTempPath() + 'Fluxo2Excel.xml'
 	Local oFwMsExcel := FwMsExcelEx():New()
 	Local oMsExcel   := MsExcel():New()
 	Local nX         := 0
@@ -439,7 +440,8 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
-		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )    
+		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )
+		ProcessMessage()    
 
 	Next nX
 
@@ -459,7 +461,8 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
-		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )    
+		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )
+		ProcessMessage()    
 
 	Next nX
 
@@ -479,6 +482,8 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
+	
+	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Atenção !!!' )
 
 	//oMsExcel:WorkBooks:Open( cArquivo )
 	//oMsExcel:SetVisible( .T. )
