@@ -16,7 +16,7 @@ User Function FC022BUT()
 	Local bFluxo2Excel := { || Fluxo2Excel( aParam ) }
 	Local bMsAguarde   := { || MsAguarde( bFluxo2Excel, 'Executando ...', 'Mensagem...',.F. ) }
 
-	aUsButtons := { { "", bMsAguarde, "Comentário ....", "Lei XYZ/2018" } }
+	aUsButtons := { { "", bMsAguarde, "Gera em excel os fluxos de caixa diário e anual para o Portal da Transparência", "Portal Transparência" } }
 
 Return aUsButtons
 
@@ -64,33 +64,33 @@ Static Function Fluxo2Excel( aParam )
 
 	//For nX := 1 To Len( cMasc )
 
-		//aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
+	//aAdd( aMasc, Val( SubStr( cMasc, nX, 1 ) ) )
 
 	//Next nX
 
 	// Verifica a quantidade níveis do Fluxo
 	//If ParamBox({{1,'Quantidade de Níveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
 
-		//If aRet[1] > Len( aMasc )
+	//If aRet[1] > Len( aMasc )
 
-			//nLenMasc := Len( aMasc )
-
-		//Else
-
-			//nLenMasc := aRet[1]
-
-		//End If
+	//nLenMasc := Len( aMasc )
 
 	//Else
 
-		//nLenMasc := Len( aMasc )
+	//nLenMasc := aRet[1]
+
+	//End If
+
+	//Else
+
+	//nLenMasc := Len( aMasc )
 
 	//End
 
 	//Define o Tamanho limite do Código da Natureza
 	//For nX := 1 To nLenMasc
 
-		//nLenNat += aMasc[nX]
+	//nLenNat += aMasc[nX]
 
 	//Next nX
 
@@ -134,7 +134,7 @@ Static Function Fluxo2Excel( aParam )
 		Return
 
 	End If
-    
+
 	MsProcTxt( 'Montando Cabeçalho.' )
 
 	// Populando o Array com os nomes das colunas da planilha a ser gerada
@@ -142,7 +142,7 @@ Static Function Fluxo2Excel( aParam )
 	// Se o período for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao Mês corrente (dDataBase) e
 	// as colunas de saldo Orçado do mês corrente e dos meses posteriores a este.
 	For nX := 1 To Len( oFluxo:aColumns )
-        
+
 		cCabec  := AllTrim( Upper( NoAcento( oFluxo:aColumns[ nX ]:cTitle ) ) )
 		nMesCol := MesNum( cCabec )
 
@@ -188,9 +188,9 @@ Static Function Fluxo2Excel( aParam )
 
 		// Se a linha não corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
 		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
-		
+
 		MsProcTxt( 'Montando Linhas: ' + cNat )
-		ProcessMessage()    
+		ProcessMessage()
 
 		// Verifica se a linha é uma natureza se tiver um hífen separando o código do nome da natureza
 		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
@@ -198,9 +198,9 @@ Static Function Fluxo2Excel( aParam )
 			// Se Natureza estiver em nível superior ao definido pelo usuário pula para próxima
 			/*If Len( AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) ) > nLenNat
 
-				(cAlias)->( DbSkip() )
+			(cAlias)->( DbSkip() )
 
-				LOOP
+			LOOP
 
 			End If*/
 
@@ -435,13 +435,13 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 		oFWMSExcel:SetCelBold(.F.)
 		//If Len( AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-			//oFWMSExcel:SetCelBold(.T.)
+		//oFWMSExcel:SetCelBold(.T.)
 
 		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )
-		ProcessMessage()    
+		ProcessMessage()
 
 	Next nX
 
@@ -456,13 +456,13 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 		oFWMSExcel:SetCelBold(.F.)
 		//If Len( AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] ) ) == nLenPriNat
 
-			//oFWMSExcel:SetCelBold(.T.)
+		//oFWMSExcel:SetCelBold(.T.)
 
 		//End If
 
 		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )
-		ProcessMessage()    
+		ProcessMessage()
 
 	Next nX
 
@@ -482,7 +482,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
-	
+
 	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Atenção !!!' )
 
 	//oMsExcel:WorkBooks:Open( cArquivo )
