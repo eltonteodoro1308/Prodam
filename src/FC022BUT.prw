@@ -62,7 +62,6 @@ Static Function Fluxo2Excel( aParam )
 
 	End If
 
-	//lExecuta := lExecuta .And. lFluxSint // Verifica se Considera Fluxo Sintético
 	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 
 	If MV_PAR05 == 1
@@ -89,8 +88,6 @@ Static Function Fluxo2Excel( aParam )
 
 		AutoGrLog( 'Permitido Executar Apenas para:' )
 		AutoGrLog( '' )
-		//AutoGrLog( '- Fluxo sintético.' )
-		//AutoGrLog( '' )
 		AutoGrLog( '- Período em Dias ou Meses.')
 		AutoGrLog( '' )
 		AutoGrLog( '- Se período em dias a data inicial deve ser o primeiro dia do mês e a data final o último dia do mês.' )
