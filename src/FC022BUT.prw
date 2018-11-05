@@ -358,7 +358,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local aCelStyle  := {}
 	Local cNatAux    := ''
 	
-	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) == 'XML'
+	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) <> 'XML'
 	
 		cArquivo += '.xml'
 
