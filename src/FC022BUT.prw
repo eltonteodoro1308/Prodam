@@ -43,7 +43,7 @@ Static Function Fluxo2Excel( aParam )
 	Local nMesCol     := 0
 	Local aLinEntrada := {}
 	Local aLinSaida   := {}
-	Local aIngresso   := {}
+	Local aIngresso   := {}                                 
 	Local aDesembolso := {}
 	Local aSldLiquido := {}
 	Local aSldInicial := {}
@@ -56,7 +56,7 @@ Static Function Fluxo2Excel( aParam )
 	Local aRet        := {}
 
 	// Verifica a quantidade níveis do Fluxo
-	If ! ParamBox({{1,'Quantidade de Níveis',Len(aMasc),'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+	If ! ParamBox({{1,'Quantidade de Níveis', 000,'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
 
 		aRet := {999}
 
@@ -167,7 +167,7 @@ Static Function Fluxo2Excel( aParam )
 
 			cNatAux := AllTrim( StrTokArr2(cNat,'-', .T.)[1] )
 
-			If Len( StrTokArr2(cNat,'.', .T.)[1] ) > aRet[1]
+			If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[1]
 
 				(cAlias)->( DbSkip() )
 
@@ -348,9 +348,9 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 /*/
 Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 
-	Local cArquivo   := cGetFile(,,,,,,.F.) + '.xml' //GetTempPath() + 'Fluxo2Excel.xml'
+	Local cArquivo   := cGetFile(,,,,,,.F.) //GetTempPath() + 'Fluxo2Excel.xml'
 	Local oFwMsExcel := FwMsExcelEx():New()
-	Local oMsExcel   := MsExcel():New()
+	//Local oMsExcel   := MsExcel():New()
 	Local nX         := 0
 	Local nAlign     := 0
 	Local nFormat    := 0
@@ -360,7 +360,13 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
 	Local aCelStyle  := {}
 	Local cNatAux    := ''
+	
+	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) == 'XML'
+	
+		cArquivo += '.xml'
 
+	End If
+	
 	For nX := 1 To Len( aCabec )
 
 		aAdd( aCelStyle, nX )
