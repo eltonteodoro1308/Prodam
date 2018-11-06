@@ -9,6 +9,17 @@ Adiciona opção em Ações Relacionadas da rotina de Fluxo de Caixa por Natureza - 
 @since 30/10/2018
 @return array, Retorna um array com a(s) nova(s) opção(ões) que será(ão) adicionada(s) ao botão Ações relacionadas
 /*/
+
+/*
+
+X Separar Detallhe de nível do ingresso e do desembolso
+X Não trazer contas com todas as colunas zeradas
+- Verificar se natureza de ingresso tem saldo de desembolso a compensar
+- Verificar se natureza de desemboldo tem saldo de ingresso a compensar
+X Trocar nomenclatura de planejado para previsto
+- Verifcar se os títulos da natureza 3.1 para transferir para 5.5
+
+*/
 User Function FC022BUT()
 
 	Local aParam       := aClone( PARAMIXB )
@@ -16,7 +27,7 @@ User Function FC022BUT()
 	Local bFluxo2Excel := { || Fluxo2Excel( aParam ) }
 	Local bMsAguarde   := { || MsAguarde( bFluxo2Excel, 'Executando ...', 'Mensagem...',.F. ) }
 
-	aUsButtons := { { "", bMsAguarde, "Gera em excel os fluxos de caixa diário e anual para o Portal da Transparência", "Portal Transparência" } }
+	aUsButtons := { { '', bMsAguarde, '', 'Portal Transparência' } }
 
 Return aUsButtons
 
@@ -43,7 +54,7 @@ Static Function Fluxo2Excel( aParam )
 	Local nMesCol     := 0
 	Local aLinEntrada := {}
 	Local aLinSaida   := {}
-	Local aIngresso   := {}                                 
+	Local aIngresso   := {}
 	Local aDesembolso := {}
 	Local aSldLiquido := {}
 	Local aSldInicial := {}
@@ -52,17 +63,10 @@ Static Function Fluxo2Excel( aParam )
 	Local cNat        := ''
 	Local cNatAux     := ''
 	Local nX          := 0
-	Local lExecuta    := .T.
+	Local lExecuta    := .F.
 	Local aRet        := {}
 
-	// Verifica a quantidade níveis do Fluxo
-	If ! ParamBox({{1,'Quantidade de Níveis', 000,'@','.T.',,'.T.',50,.F.}},'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
-
-		aRet := {999}
-
-	End If
-
-	lExecuta := lExecuta .And. cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
+	lExecuta := cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 
 	If MV_PAR05 == 1
 
@@ -100,6 +104,16 @@ Static Function Fluxo2Excel( aParam )
 
 	End If
 
+	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
+	If ! ParamBox( {;
+	{ 1, 'Nível de Ingressos'  , 000, '@', '.T.',, '.T.', 50, .F. } ,;
+	{ 1, 'Nível de Desembolsos', 000, '@', '.T.',, '.T.', 50, .F. } };
+	,'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+
+		aRet := {999,999}
+
+	End If
+
 	MsProcTxt( 'Montando Cabeçalho.' )
 
 	// Populando o Array com os nomes das colunas da planilha a ser gerada
@@ -132,7 +146,7 @@ Static Function Fluxo2Excel( aParam )
 
 			cCabec := AllTrim( StrTran( cCabec, '/' + cValToChar( Year( MV_PAR03 ) ), '' ) )
 
-			aAdd( aCabec, StrTran( StrTokArr2(cCabec,' ', .T.)[2] + ' - ' + StrTokArr2(cCabec,' ', .T.)[1], 'ORCADO', 'PLANEJADO' ) )
+			aAdd( aCabec, StrTran( StrTokArr2(cCabec,' ', .T.)[2] + ' - ' + StrTokArr2(cCabec,' ', .T.)[1], 'ORCADO', 'PREVISTO' ) )
 
 		End If
 
@@ -144,6 +158,8 @@ Static Function Fluxo2Excel( aParam )
 		aAdd( aCabec, 'TOTAL' )
 
 	End If
+
+
 
 	// Populando os array correspondentes as linhas de Saldo de Ingressos,
 	// Entradas, Saldo de Desembolso, Linha de Saída, Saldo Líquido, Saldo Inicial, Saldo Final
@@ -164,7 +180,7 @@ Static Function Fluxo2Excel( aParam )
 
 			cNatAux := AllTrim( StrTokArr2(cNat,'-', .T.)[1] )
 
-			If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[1]
+			If Len( StrTokArr2(cNatAux,'.', .T.) ) > If( Empty( aIngresso ), aRet[1], aRet[2] )
 
 				(cAlias)->( DbSkip() )
 
@@ -258,15 +274,19 @@ Static Function Fluxo2Excel( aParam )
 
 		Else
 
-			If Empty( aIngresso )
+			If ! IsZerada( aColunas )
 
-				aAdd( aLinEntrada, aClone( aColunas ) )
+				If Empty( aIngresso )
 
-			Else
+					aAdd( aLinEntrada, aClone( aColunas ) )
 
-				aAdd( aLinSaida, aClone( aColunas ) )
+				Else
 
-			End IF
+					aAdd( aLinSaida, aClone( aColunas ) )
+
+				End If
+
+			End If
 
 		End If
 
@@ -327,10 +347,39 @@ Static Function MesNum( cColName )
 
 Return nRet
 
+/*/{Protheus.doc} IsZerada
+Verifica se o array de uma linha da planilha a ser gerada tem todas as colunas de valores zerada
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 30/10/2018
+@param aColunas, array, Array com os valores das colunas da linha a ser verificada
+@Return logic, Retorno lógico indicando se as colunas de valores estão zeradas
+/*/
+Static Function IsZerada( aColunas )
+
+	Local lRet := .T.
+	Local nX   := 0
+
+	For nX := 2 To Len( aColunas )
+
+		If aColunas[ nX ] # 0
+
+			lRet := .F.
+
+			EXIT
+
+		End If
+
+	Next nX
+
+Return lRet
+
 /*/{Protheus.doc} ToExcel
 Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de Caixa
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -345,9 +394,8 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 /*/
 Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 
-	Local cArquivo   := cGetFile(,,,,,,.F.) //GetTempPath() + 'Fluxo2Excel.xml'
+	Local cArquivo   := cGetFile(,,,,,,.F.)
 	Local oFwMsExcel := FwMsExcelEx():New()
-	//Local oMsExcel   := MsExcel():New()
 	Local nX         := 0
 	Local nAlign     := 0
 	Local nFormat    := 0
@@ -357,13 +405,13 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
 	Local aCelStyle  := {}
 	Local cNatAux    := ''
-	
+
 	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) <> 'XML'
-	
+
 		cArquivo += '.xml'
 
 	End If
-	
+
 	For nX := 1 To Len( aCabec )
 
 		aAdd( aCelStyle, nX )
@@ -464,9 +512,5 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	oFWMSExcel:GetXMLFile( cArquivo )
 
 	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Atenção !!!' )
-
-	//oMsExcel:WorkBooks:Open( cArquivo )
-	//oMsExcel:SetVisible( .T. )
-	//oMsExcel:Destroy()
 
 Return
