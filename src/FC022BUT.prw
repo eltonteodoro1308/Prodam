@@ -61,10 +61,8 @@ Static Function Fluxo2Excel( aParam )
 	Local aSldFinal   := {}
 	Local aColunas    := {}
 	Local cNat        := ''
-	Local cNatAux     := ''
 	Local nX          := 0
 	Local lExecuta    := .F.
-	Local aRet        := {}
 
 	lExecuta := cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 
@@ -101,16 +99,6 @@ Static Function Fluxo2Excel( aParam )
 		MostraErro()
 
 		Return
-
-	End If
-
-	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
-	If ! ParamBox( {;
-	{ 1, 'Nível de Ingressos'  , 000, '@', '.T.',, '.T.', 50, .F. } ,;
-	{ 1, 'Nível de Desembolsos', 000, '@', '.T.',, '.T.', 50, .F. } };
-	,'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
-
-		aRet := {999,999}
 
 	End If
 
@@ -159,8 +147,6 @@ Static Function Fluxo2Excel( aParam )
 
 	End If
 
-
-
 	// Populando os array correspondentes as linhas de Saldo de Ingressos,
 	// Entradas, Saldo de Desembolso, Linha de Saída, Saldo Líquido, Saldo Inicial, Saldo Final
 	(cAlias)->( DbGoTop() )
@@ -172,25 +158,6 @@ Static Function Fluxo2Excel( aParam )
 
 		MsProcTxt( 'Montando Linhas: ' + cNat )
 		ProcessMessage()
-
-		// Verifica se a linha é uma natureza se tiver um hífen separando o código do nome da natureza
-		If Len( StrTokArr2(cNat,'-', .T.) ) > 1
-
-			// Se Natureza estiver em nível superior ao definido pelo usuário pula para próxima
-
-			cNatAux := AllTrim( StrTokArr2(cNat,'-', .T.)[1] )
-
-			If Len( StrTokArr2(cNatAux,'.', .T.) ) > If( Empty( aIngresso ), aRet[1], aRet[2] )
-
-				(cAlias)->( DbSkip() )
-
-				LOOP
-
-			End If
-
-			cNat := AllTrim( StrTokArr2(cNat,'-', .T.)[1] ) + ' - ' + AllTrim( StrTokArr2(cNat,'-', .T.)[2] )
-
-		End If
 
 		If 'SALDOS INICIAIS' $ cNat
 
@@ -276,11 +243,11 @@ Static Function Fluxo2Excel( aParam )
 
 			If ! IsZerada( aColunas )
 
-				If Empty( aIngresso )
+				If AllTrim( (cAlias)->CART ) == 'R'
 
 					aAdd( aLinEntrada, aClone( aColunas ) )
 
-				Else
+				ElseIf AllTrim( (cAlias)->CART ) == 'P'
 
 					aAdd( aLinSaida, aClone( aColunas ) )
 
@@ -296,6 +263,9 @@ Static Function Fluxo2Excel( aParam )
 
 	End Do
 
+	// Ajuste de contas de ingresso com desemboldo e de desembolso com ingresso
+	AjIngrDes( @aIngresso, @aLinEntrada, @aDesembolso, @aLinSaida )
+
 	RestArea( aAreaAlias )
 	RestArea( aArea )
 
@@ -307,7 +277,7 @@ Return
 /*/{Protheus.doc} MesNum
 Função que localiza no nome da coluna o mês correspondente e retorna o número deste mês
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -376,6 +346,151 @@ Static Function IsZerada( aColunas )
 
 Return lRet
 
+
+/*/{Protheus.doc} AjIngrDes
+Executa o ajuste dos arrays recebidos por referência de Entradas e Saídas e seus saldos de ingresso e desembolso correspondentes,
+visto que naturezas de Receita recebem lançamentos de Despesas e naturezas de Despesas recebem lançamentos
+de Receita, assim verifica-se a condição da natureza (ED_COND) sendo Receita soma-se as entradas e subtrai-se
+as Saídas e sendo Despesas soma-se as Saídas e subtrai-se as entradas, faz também os ajustes na linhas de
+Total de ingressos e desembolsos.
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 30/10/2018
+@param aIngresso, array, Saldos totais de Ingressos da Naturezas
+@param aLinEntrada, array, Saldos de Entradas na Natureza
+@param aDesembolso, array, Saldos totais de Desembolso da Naturezas
+@param aLinSaida, array, Saldos de Saídas na Natureza
+/*/
+Static Function AjIngrDes( aIngresso, aLinEntrada, aDesembolso, aLinSaida )
+
+	Local uLinEntrada := aClone( aLinEntrada )
+	Local uLinSaida   := aClone( aLinSaida   )
+	Local nX          := 0
+	Local nY          := 0
+	Local aArea       := SED->( GetArea() )
+	Local cCodNat     := ''
+	Local nPos        := 0
+
+	aSize( aLinEntrada, 0 )
+	aSize( aLinSaida  , 0 )
+
+	// Ajusta linhs de entradas
+	For nX := 1 To Len( uLinEntrada )
+
+		cCodNat := AllTrim( StrTokArr2( uLinEntrada[ nX,1 ], '-', .T. )[1] )
+
+		// Verifica se Natureza é um Receita
+		If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_COND' ) == 'R'
+
+			// Sendo Receita Inclui na lista de entradas
+			aAdd( aLinEntrada, uLinEntrada[ nX ]  )
+
+		Else
+
+			// Sendo Despesa Inclui na lista de Saídas
+			aAdd( aLinSaida, uLinEntrada[ nX ]  )
+
+			// Exclui os valores desta linha dos saldos de Ingresso e Desembolso se a Natureza
+			// for sintética de nível 1 ou seja ED_TIPO == 1-Sintético e ED_PAI  == ''
+			If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) == '1' .And.;
+			Empty( Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) )
+				For nY := 2 To Len( uLinEntrada[ nX ] )
+
+					aIngresso  [ 1, nY ] := aIngresso  [ 1, nY ] - uLinEntrada[ nX, nY ]
+					aDesembolso[ 1, nY ] := aDesembolso[ 1, nY ] - uLinEntrada[ nX, nY ]
+
+				Next nY
+
+			End If
+
+		End If
+
+	Next nX
+
+
+	// Ajusta linhs de saídas
+	For nX := 1 To Len( uLinSaida )
+
+		cCodNat := AllTrim( StrTokArr2( uLinSaida[ nX,1 ], '-', .T. )[1] )
+
+		// Verifica se Natureza é um Despesa
+		If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_COND' ) == 'D'
+
+			// Sendo Despesa Inclui na lista de Saídas
+
+			// Verifica posição da natureza na lista de despesas
+			nPos := aScan( aLinSaida, { |X| X[1] == uLinSaida[ nX,1 ] } )
+
+			// Verifica se a mesma já existe na lista
+			If nPos == 0
+
+				// Se não existir inclui
+				aAdd( aLinSaida, uLinSaida[ nX ]  )
+
+			Else
+
+				// Se Existir soma valores na posição
+				For nY := 2 To Len( aLinSaida[ nPos ] )
+
+					aLinSaida[ nPos, nY ] := aLinSaida[ nPos, nY ] + uLinSaida[ nX, nY ]
+
+				Next nY
+
+
+			End If
+
+		Else
+
+			// Sendo Receita Inclui na lista de entradas
+
+			// Verifica posição da natureza na lista de receitas
+			nPos := aScan( aLinEntrada, { |X| X[1] == uLinSaida[ nX,1 ] } )
+
+			// Verifica se a mesma já existe na lista
+			If nPos == 0
+
+				// Se não existir inclui
+				aAdd( aLinEntrada, uLinSaida[ nX ]  )
+
+			Else
+
+				// Se Existir soma valores na posição
+				For nY := 2 To Len( aLinEntrada[ nPos ] )
+
+					aLinEntrada[ nPos, nY ] := aLinEntrada[ nPos, nY ] - uLinSaida[ nX, nY ]
+
+				Next nY
+
+
+			End If
+
+			// Exclui os valores desta linha dos saldos de Ingresso e Desembolso se a Natureza
+			// for sintética de nível 1 ou seja ED_TIPO == 1-Sintético e ED_PAI  == ''
+			If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) == '1' .And.;
+			Empty( Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) )
+
+				For nY := 2 To Len( uLinSaida[ nX ] )
+
+					aIngresso  [ 1, nY ] := aIngresso  [ 1, nY ] - uLinSaida[ nX, nY ]
+					aDesembolso[ 1, nY ] := aDesembolso[ 1, nY ] - uLinSaida[ nX, nY ]
+
+				Next nY
+
+			End If
+
+		End If
+
+	Next nX
+
+	SED->( RestArea( aArea ) )
+
+	// Ordena lista de entradas e saída conforme natureza.
+	aSort(aLinEntrada,,, { |X, Y| X[1] > Y[1] } )
+	aSort(aLinSaida  ,,, { |X, Y| X[1] > Y[1] } )
+
+Return
 /*/{Protheus.doc} ToExcel
 Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de Caixa
 @project MAN0000038865_EF_002
@@ -405,6 +520,18 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cTable     := 'FLUXO DE CAIXA POR NATUREZA ' + cWorkSheet
 	Local aCelStyle  := {}
 	Local cNatAux    := ''
+	Local aArea      := SED->( GetArea() )
+	Local aRet       := {}
+
+	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
+	If ! ParamBox( {;
+	{ 1, 'Nível de Ingressos'  , 000       , '@', '.T.',, '.T.', 90, .F. } ,;
+	{ 1, 'Nível de Desembolsos', 000       , '@', '.T.',, '.T.', 90, .F. } };
+	,'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+
+		aRet := { 999, 999}
+
+	End If
 
 	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) <> 'XML'
 
@@ -458,13 +585,18 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 		cNatAux := AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] )
 
-		If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+		If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[1]
 
-			oFWMSExcel:SetCelBold(.T.)
+			If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+
+				oFWMSExcel:SetCelBold(.T.)
+
+			End If
+
+			oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
 
 		End If
 
-		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinEntrada[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinEntrada[nX,1] )
 		ProcessMessage()
 
@@ -480,15 +612,20 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 		oFWMSExcel:SetCelBold(.F.)
 
-		cNatAux := AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] )
+		cNatAux := AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] )
 
-		If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+		If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[2]
 
-			oFWMSExcel:SetCelBold(.T.)
+			If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
+
+				oFWMSExcel:SetCelBold(.T.)
+
+			End If
+
+			oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
 
 		End If
 
-		oFWMSExcel:AddRow( cWorkSheet, cTable, aLinSaida[nX], aCelStyle )
 		MsProcTxt( 'Montando Planilha: ' + aLinSaida[nX,1] )
 		ProcessMessage()
 
@@ -512,5 +649,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	oFWMSExcel:GetXMLFile( cArquivo )
 
 	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Atenção !!!' )
+
+	SED->( RestArea( aArea ) )
 
 Return
