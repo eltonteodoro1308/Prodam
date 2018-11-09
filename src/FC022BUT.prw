@@ -487,8 +487,8 @@ Static Function AjIngrDes( aIngresso, aLinEntrada, aDesembolso, aLinSaida )
 	SED->( RestArea( aArea ) )
 
 	// Ordena lista de entradas e saída conforme natureza.
-	aSort(aLinEntrada,,, { |X, Y| X[1] > Y[1] } )
-	aSort(aLinSaida  ,,, { |X, Y| X[1] > Y[1] } )
+	// aSort(aLinEntrada,,, { |X, Y| X[1] < Y[1] } )
+	// aSort(aLinSaida  ,,, { |X, Y| X[1] < Y[1] } )
 
 Return
 /*/{Protheus.doc} ToExcel
@@ -509,7 +509,7 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 /*/
 Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 
-	Local cArquivo   := cGetFile(,,,,,,.F.)
+	Local cArquivo   := ''
 	Local oFwMsExcel := FwMsExcelEx():New()
 	Local nX         := 0
 	Local nAlign     := 0
@@ -522,16 +522,35 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cNatAux    := ''
 	Local aArea      := SED->( GetArea() )
 	Local aRet       := {}
+	Local aParam     := {}
+	Local cValid     := 'Eval( { || MV_PAR01 := cGetFile( ,,, SubStr( MV_PAR01, 1, Rat( "\", MV_PAR01 ) - 1 ),,, .F. ), .T. } )'
+	Local aBkParam   := Array( 60 )
+	
+	For nX := 1 To Len( aBkParam )
+	       
+		aBkParam[nX] := &( 'MV_PAR' + StrZero( nX, 2 ) )
+	
+	Next nX
+	
+	aAdd( aParam, { 1, 'Local e Nome do Arquivo'  , Space(255), '@', cValid ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Ingressos'       , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Desembolsos'     , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
 
 	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
-	If ! ParamBox( {;
-	{ 1, 'Nível de Ingressos'  , 000       , '@', '.T.',, '.T.', 90, .F. } ,;
-	{ 1, 'Nível de Desembolsos', 000       , '@', '.T.',, '.T.', 90, .F. } };
-	,'',@aRet,,,,,,,'Fluxo2Excel',.T.,.T.)
+	If ! ParamBox( aParam, '', @aRet,,,,,,, 'Fluxo2Excel', .T., .T. )
 
-		aRet := { 999, 999}
+		aRet := { GetTempPath() + GetNextAlias() + '.xml', 999, 999 }
 
 	End If
+	
+	For nX := 1 To Len( aBkParam )
+	       
+		&( 'MV_PAR' + StrZero( nX, 2 ) ) := aBkParam[nX]
+	
+	Next nX
+
+	
+	cArquivo := aRet[1]
 
 	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) <> 'XML'
 
@@ -585,7 +604,7 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 		cNatAux := AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] )
 
-		If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[1]
+		If Len( StrTokArr2(cNatAux,'.', .T.) ) <= aRet[2]
 
 			If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
 
@@ -612,9 +631,9 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 		oFWMSExcel:SetCelBold(.F.)
 
-		cNatAux := AllTrim( StrTokArr2( aLinEntrada[nX,1], '-', .T. )[1] )
+		cNatAux := AllTrim( StrTokArr2( aLinSaida[nX,1], '-', .T. )[1] )
 
-		If Len( StrTokArr2(cNatAux,'.', .T.) ) > aRet[2]
+		If Len( StrTokArr2(cNatAux,'.', .T.) ) <= aRet[3]
 
 			If Len( StrTokArr2( cNatAux, '.', .T. ) ) == 1
 
@@ -652,4 +671,4 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 
 	SED->( RestArea( aArea ) )
 
-Return
+Return  
