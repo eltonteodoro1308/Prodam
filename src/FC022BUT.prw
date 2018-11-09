@@ -9,17 +9,6 @@ Adiciona opção em Ações Relacionadas da rotina de Fluxo de Caixa por Natureza - 
 @since 30/10/2018
 @return array, Retorna um array com a(s) nova(s) opção(ões) que será(ão) adicionada(s) ao botão Ações relacionadas
 /*/
-
-/*
-
-X Separar Detallhe de nível do ingresso e do desembolso
-X Não trazer contas com todas as colunas zeradas
-- Verificar se natureza de ingresso tem saldo de desembolso a compensar
-- Verificar se natureza de desemboldo tem saldo de ingresso a compensar
-X Trocar nomenclatura de planejado para previsto
-- Verifcar se os títulos da natureza 3.1 para transferir para 5.5
-
-*/
 User Function FC022BUT()
 
 	Local aParam       := aClone( PARAMIXB )
@@ -485,10 +474,6 @@ Static Function AjIngrDes( aIngresso, aLinEntrada, aDesembolso, aLinSaida )
 	Next nX
 
 	SED->( RestArea( aArea ) )
-
-	// Ordena lista de entradas e saída conforme natureza.
-	// aSort(aLinEntrada,,, { |X, Y| X[1] < Y[1] } )
-	// aSort(aLinSaida  ,,, { |X, Y| X[1] < Y[1] } )
 
 Return
 /*/{Protheus.doc} ToExcel
