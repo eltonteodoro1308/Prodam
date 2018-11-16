@@ -63,7 +63,7 @@ Static Function ModelDef()
 	oModel:SetDescription('Requisitos do Cargo')
 	
 	// Definindo os Sub-Models Field e Grid do Model
-	oModel:addFields( 'FIELD_ZS0', /*owner*/  , oStrZS0,, { | oSubModel, nLinha | LinhaOK( oSubModel, nLinha ) } )
+	oModel:addFields( 'FIELD_ZS0',            , oStrZS0                                                          )
 	oModel:addGrid  ( 'GRID_ZS1' , 'FIELD_ZS0', oStrZS1,, { | oSubModel, nLinha | LinhaOK( oSubModel, nLinha ) } )
 	oModel:addGrid  ( 'GRID_ZS2' , 'FIELD_ZS0', oStrZS2,, { | oSubModel, nLinha | LinhaOK( oSubModel, nLinha ) } )
 	oModel:addGrid  ( 'GRID_ZS3' , 'FIELD_ZS0', oStrZS3,, { | oSubModel, nLinha | LinhaOK( oSubModel, nLinha ) } )
@@ -87,6 +87,18 @@ Static Function ModelDef()
 	oModel:getModel( 'GRID_ZS2' ):SetOptional( .T. )
 	oModel:getModel( 'GRID_ZS3' ):SetOptional( .T. )
 	oModel:getModel( 'GRID_ZS4' ):SetOptional( .T. )
+	
+	// Define para as View´s do tipo Grid os campos que não podem se repetir
+	oModel:GetModel( 'GRID_ZS1' ):SetUniqueLine( { 'ZS1_CURSO'  } )
+	oModel:GetModel( 'GRID_ZS2' ):SetUniqueLine( { 'ZS2_CURSO'  } )
+	oModel:GetModel( 'GRID_ZS3' ):SetUniqueLine( { 'ZS3_CURSO'  } )
+	oModel:GetModel( 'GRID_ZS4' ):SetUniqueLine( { 'ZS4_CONHEC' } )
+	
+	// Definindo que as View´s do tipo Grid irão trabalahar com aCols e aHeader
+	oModel:getModel('GRID_ZS1'):SetUseOldGrid(.T.)
+	oModel:getModel('GRID_ZS2'):SetUseOldGrid(.T.)
+	oModel:getModel('GRID_ZS3'):SetUseOldGrid(.T.)
+	oModel:getModel('GRID_ZS4'):SetUseOldGrid(.T.)
 	
 Return oModel
 
@@ -158,7 +170,6 @@ Static Function ViewDef()
 	
 Return oView
 
-
 /*/{Protheus.doc} LinhaOk
 Executa a validação da Linha dos Grid´s GRID_ZS1, GRID_ZS2, GRID_ZS3 e GRID_ZS4
 @project MAN0000038865_EF_002
@@ -170,7 +181,6 @@ Executa a validação da Linha dos Grid´s GRID_ZS1, GRID_ZS2, GRID_ZS3 e GRID_ZS4
 /*/
 Static Function LinhaOK( oSubModel, nLinha )
 	
-	Local lRet      := .T.
 	Local cAlias    := StrTokArr2( oSubModel:GetId(), '_', .T. )[2] // Pelo nome Id do Sub-Model verifica o nome da Tabela
 	Local cAltern   := oSubModel:GetValue( cAlias + '_ALTERN', nLinha ) // Verifica o nome do campo de Grupo de Alternativas da Tabela
 	Local cExigen   := oSubModel:GetValue( cAlias + '_EXIGEN', nLinha ) // Verifica o nome do campo de Exigência da Tabela
@@ -184,11 +194,11 @@ Static Function LinhaOK( oSubModel, nLinha )
 			'Quando Item definido como "Desejável" não pode haver um Grupo de Alternativas Definido para este Item.', 1, 0,,,,,,;
 			{ 'Definir Item como "Obrigatório" ou Excluí-lo do Grupo de Alternativas' } )
 		
-		lRet := ! lRet
+		Return .F.
 		
 	End If
 	
-Return lRet
+Return .T.
 
 /*/{Protheus.doc} LeftZero
 Função utilizada no gatilho 001 dos campos ZS1_ALTERN, ZS2_ALTERN, ZS3_ALTERN e ZS4_ALTERN
@@ -266,6 +276,172 @@ User Function SZ5ZS()
 	If U_JurF3Qry( cQuery, 'SZ5ZS', 'SZ5RECNO', @nRetorno, , aPesq ) // User Function localizada no fonte TRM002.prw
 		
 		SZ5->( dbGoto( nRetorno ) )
+		lRet := .T.
+		
+	Else
+		
+		lRet := .F.
+		
+	EndIf
+	
+Return lRet
+
+/*/{Protheus.doc} ValidRA1
+Validação de curso informado nos campos ZS1_CURS0, ZS2_CURS0 e ZS3_CURS0
+Verifica a exitência do código do curso
+Verifica se o Curso pertence a categoria selecionada definida no campo ZS1_CATEG, ZS2_CATEG e ZS3_CATEG respectivamente
+Verifica se um curso de diferente de Formação está sendo utilizado em na aba Formação
+Verifica se um curso de diferente de Capacitação está sendo utilizado em na aba Capacitação
+Verifica se um curso de diferente de Certificação está sendo utilizado em na aba Certificação
+Verifica se há pontução definida para o Curso de Formação
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+@Return logic, Retorna se verdadeiro ou falso para se o curso é válido ou não
+/*/
+User Function ValidRA1()
+	
+	Local cTabName  := StrTokArr2( StrTokArr2( ReadVar(), '_', .T. )[ 1 ], '>', .T. )[ 2 ]
+	Local cCategCpo := cTabName + '_CATEG'
+	Local cCursoCpo := cTabName + '_CURSO'
+	Local cTipoPp   := Posicione( 'RA1', 1, xFilial("RA1") + FwFldGet( cCursoCpo ), 'RA1_TIPOPP')
+	Local lTipoPp   := cTipoPp == '001'
+	Local lPonPd    := Posicione( 'RA1', 1, xFilial("RA1") + FwFldGet( cCursoCpo ), 'RA1_PONAPD') == 0
+	Local cCateg    := Posicione( 'RA1', 1, xFilial("RA1") + FwFldGet( cCursoCpo ), 'RA1_CATEG')
+	Local aArea     := GetArea()
+	
+	//Verifica a exitência do código do curso
+	If ! ExistCpo( 'RA1', FwFldGet( cCursoCpo ) )
+		
+		Return .F.
+		
+	End If
+	
+	//Verifica se o Curso pertence a categoria selecionada
+	If FwFldGet( cCategCpo ) != cCateg
+		
+		Help(,, 'Atenção !!!',,;
+			'Curso não pertence a categoria selecionada.', 1, 0,,,,,,;
+			{ 'Selecione um curso para a categoria selecionada.' } )
+		
+		
+		Return .F.
+		
+	End If
+	
+	// Verifica se um curso de diferente de Formação está sendo utilizado em na aba Formação
+	If cTabName = 'ZS1' .And. !( cTipoPp == '001' )
+		
+		Help(,, 'Atenção !!!',,;
+			'Curso não é uma Formação.', 1, 0,,,,,,;
+			{ 'Selecione um Curso que é uma Formação.' } )
+		
+		Return .F.
+		
+	End If
+	
+	//Verifica se um curso de diferente de Capacitação está sendo utilizado em na aba Capacitação
+	If cTabName == 'ZS2' .And. !( cTipoPp # '001' .And. cTipoPp # '002' )
+		
+		Help(,, 'Atenção !!!',,;
+			'Curso não é uma Capacitação.', 1, 0,,,,,,;
+			{ 'Selecione um Curso que é uma Capacitação.' } )
+		
+		Return .F.
+		
+	End If
+	
+	//Verifica se um curso de diferente de Certificação está sendo utilizado em na aba Certificação
+	If cTabName == 'ZS3' .And. !( cTipoPp == '002' )
+		
+		Help(,, 'Atenção !!!',,;
+			'Curso não é uma Certificação.', 1, 0,,,,,,;
+			{ 'Selecione um Curso que é uma Certificação.' } )
+		
+		Return .F.
+		
+	End If
+	
+	
+	// Verifica se há pontução definida para o Curso de Formação
+	If lTipoPp .And. lPonPd
+		
+		Help(,, 'Atenção !!!',,;
+			'Curso sem pontuacao.', 1, 0,,,,,,;
+			{ 'Definir uma pontuação para o curso.' } )
+		
+		Return .F.
+		
+	End If
+	
+	
+	RestArea( aArea )
+	
+Return .T.
+
+/*/{Protheus.doc} SZ7ZS4
+Função utilizada na consulta padrão SZ7ZS4 utilizada pelo campo ZS4_CATEG
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+@Return logic, Indica que o Browse específico da consulta padrão pode ser montado com sucesso
+/*/
+User Function SZ7ZS4()
+	
+	Local nRetorno := 0
+	Local aPesq    := {"Z7_CODIGO","Z7_DESCRI"}
+	Local lRet     := .T.
+	
+	cQuery := " SELECT SZ7.Z7_FILIAL, SZ7.Z7_CODIGO, SZ7.Z7_DESCRI, SZ7.R_E_C_N_O_ SZ7RECNO "
+	cQuery += " FROM " + RetSqlName("SZ7") + " SZ7 "
+	cQuery += " WHERE "
+	cQuery += " SZ7.Z7_FILIAL 	= '"+xFilial("SZ7")+"' AND "
+	cQuery += " SZ7.Z7_AREA 	= '"+FwFldGet('ZS4_AREA')+"' AND "
+	cQuery += " SZ7.D_E_L_E_T_ 	= ''"
+	
+	If U_JurF3Qry( cQuery, 'SZ7ZS4', 'SZ7RECNO', @nRetorno, , aPesq ) // User Function localizada no fonte TRM002.prw
+		
+		SZ7->( dbGoto( nRetorno ) )
+		lRet := .T.
+		
+	Else
+		
+		lRet := .F.
+		
+	EndIf
+	
+Return lRet
+
+/*/{Protheus.doc} SZ8ZS4
+Função utilizada na consulta padrão SZ8ZS4 utilizada pelo campo ZS4_CONHEC
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+@Return logic, Indica que o Browse específico da consulta padrão pode ser montado com sucesso
+/*/
+User Function SZ8ZS4()
+	
+	Local nRetorno := 0
+	Local aPesq	   := {"Z8_CODIGO","Z8_DESCRI"}
+	Local lRet	   := .T.
+	
+	cQuery := " SELECT SZ8.Z8_FILIAL, SZ8.Z8_CODIGO, SZ8.Z8_DESCRI, SZ8.R_E_C_N_O_ SZ8RECNO "
+	cQuery += " FROM " + RetSqlName("SZ8") + " SZ8 "
+	cQuery += " WHERE "
+	cQuery += " SZ8.Z8_FILIAL 	= '" + xFilial("SZ8")	+ "' AND "
+	cQuery += " SZ8.Z8_AREA 	= '" + FwFldGet('ZS4_AREA') + "' AND "
+	cQuery += " SZ8.Z8_CATEG 	= '" + FwFldGet('ZS4_CATEG') + "' AND "
+	cQuery += " SZ8.D_E_L_E_T_ 	= ''"
+	
+	If U_JurF3Qry( cQuery, 'SZ8ZS4', 'SZ8RECNO', @nRetorno, , aPesq )// User Function localizada no fonte TRM002.prw
+		
+		SZ8->( dbGoto( nRetorno ) )
 		lRet := .T.
 		
 	Else
