@@ -33,6 +33,8 @@ Static Function MenuDef()
 	
 	Local aRotina := FWMVCMenu( 'TRM009' ) // Define o menu da rotina
 	
+	aAdd( aRotina,  { 'Criticar Cargos x Funcionários', 'U_TRMX09', 0, 2, 0, NIL }  )
+	
 Return aRotina
 
 /*/{Protheus.doc} ModelDef
@@ -286,6 +288,66 @@ User Function SZ5ZS()
 	
 Return lRet
 
+/*/{Protheus.doc} RA1ZS
+Função utilizada na consulta padrão RA1ZS utilizada pelos campos ZS1_CURSO, ZS2_CURSO e ZS3_CURSO
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+@Return logic, Indica que o Browse específico da consulta padrão pode ser montado com sucesso
+/*/
+User Function RA1ZS()
+	
+	Local cTabName  := StrTokArr2( StrTokArr2( ReadVar(), '_', .T. )[ 1 ], '>', .T. )[ 2 ]
+	Local cCategCpo := cTabName + '_CATEG'
+	Local cReadvar := ReadVar()
+	Local nRetorno := 0
+	Local aPesq    := {"RA1_CURSO","RA1_DESC"}
+	Local lRet     := .T.
+	Local cEstou   := ''
+	
+	If 'ZS1' $ cReadVar
+		
+		cEstou := '01'
+		
+	ElseIF 'ZS2' $ cReadVar
+		
+		cEstou := '02'
+		
+	ElseIF 'ZS3' $ cReadVar
+		
+		cEstou := '03'
+		
+	End If
+	
+	cQuery := " SELECT RA1.RA1_CURSO, RA1.RA1_DESC, RA1.R_E_C_N_O_ RA1RECNO "
+	cQuery += " FROM " + RetSQLName("RA1") + " RA1 "
+	cQuery += " WHERE RA1.D_E_L_E_T_ = '' AND RA1.RA1_FILIAL = '" + xFilial("SZ5") + "' AND "
+	
+	If cEstou == "01" //Formação Academica
+		cQuery += " RA1.RA1_TIPOPP = '001' AND "
+	ElseIf cEstou == "02" //Capacitação
+		cQuery += " RA1.RA1_TIPOPP <> '001' AND RA1.RA1_TIPOPP <> '002' AND "
+	ElseIf cEstou == "03" //Certificação
+		cQuery += " RA1.RA1_TIPOPP = '002' AND "
+	EndIf
+	
+	cQuery += " RA1.RA1_CATEG = '" + FwFldGet( cCategCpo ) + "'"
+	
+	If U_JurF3Qry( cQuery, 'RA1ZS', 'RA1RECNO', @nRetorno, , aPesq ) // User Function localizada no fonte TRM002.prw
+		
+		RA1->( dbGoto( nRetorno ) )
+		lRet := .T.
+		
+	Else
+		
+		lRet := .F.
+		
+	EndIf
+	
+Return lRet
+
 /*/{Protheus.doc} ValidRA1
 Validação de curso informado nos campos ZS1_CURS0, ZS2_CURS0 e ZS3_CURS0
 Verifica a exitência do código do curso
@@ -451,3 +513,74 @@ User Function SZ8ZS4()
 	EndIf
 	
 Return lRet
+
+
+/*/{Protheus.doc} TRMX09
+Rotina que emite o relatório de crítica das competências do cargo x funcionário
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+User Function TRMX09()
+	
+	Local cAlias1   := GetNextAlias()
+	Local cPar01    := ''
+	Local cPar02    := ''
+	Local cPar03    := ''
+	Local cPar04    := ''
+	Local aParam    := {}
+	Local aRet      := {}
+	Local nTamMat   := GetSx3Cache( 'RA_MAT'  , 'X3_TAMANHO' )
+	Local nTamCargo := GetSx3Cache( 'RA_CARGO', 'X3_TAMANHO' )
+	Local cPicMat   := GetSx3Cache( 'RA_MAT'  , 'X3_PICTURE' )
+	Local cPicCargo := GetSx3Cache( 'RA_CARGO', 'X3_PICTURE' )
+	Local cMatDe    := Space( nTamMat )
+	Local cCargoDe  := Space( nTamCargo )
+	Local cMatAte   := Replicate( 'Z', nTamMat )
+	Local cCargoAte := Replicate( 'Z', nTamCargo )
+	
+	aAdd( aParam, { 1, 'Matricula De'  , cMatDe   , cPicMat  , '.T.', 'SRA02', '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Matricula Até' , cMatAte  , cPicMat  , '.T.', 'SRA02', '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Cargo De'      , cCargoDe , cPicCargo, '.T.', 'SQ3'  , '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Cargo Até'     , cCargoAte, cPicCargo, '.T.', 'SQ3'  , '.T.', 90, .F. } )
+	
+	If ! ParamBox( aParam, '', @aRet,,,,,,, 'TRMX09', .T., .T. )
+		
+		aRet := { cMatDe, cMatAte, cCargoDe, cCargoAte }
+		
+	End If
+	
+	cPar01 := aRet[ 1 ]
+	cPar02 := aRet[ 2 ]
+	cPar03 := aRet[ 3 ]
+	cPar04 := aRet[ 4 ]
+	
+	BeginSql alias cAlias1
+		
+		SELECT DISTINCT
+		
+		SRA.RA_MAT,
+		SRA.RA_NOME,adm
+		SRA.RA_CARGO,
+		SQ3.Q3_DESCSUM,
+		SQ3.Q3_XESPECI
+		
+		FROM %table:SRA% SRA
+		
+		LEFT JOIN %table:SQ3% SQ3
+		ON SRA.RA_CARGO = SQ3.Q3_CARGO
+		
+		WHERE SRA.RA_FILIAL = %xfilial:SRA%
+		AND   SRA.%notDel%
+		AND   SQ3.%notDel%
+		AND   SRA.RA_SITFOLH <> 'D'
+		AND   SRA.RA_MAT   BETWEEN %exp:cPar01% AND %exp:cPar02%
+		AND   SRA.RA_CARGO BETWEEN %exp:cPar03% AND %exp:cPar04%
+		
+		ORDER BY RA_MAT, RA_CARGO
+		
+	EndSql
+	
+Return
