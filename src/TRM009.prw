@@ -514,7 +514,6 @@ User Function SZ8ZS4()
 	
 Return lRet
 
-
 /*/{Protheus.doc} TRMX09
 Rotina que emite o relatório de crítica das competências do cargo x funcionário
 @project MAN0000038865_EF_002
@@ -525,11 +524,6 @@ Rotina que emite o relatório de crítica das competências do cargo x funcionário
 /*/
 User Function TRMX09()
 	
-	Local cAlias1   := GetNextAlias()
-	Local cPar01    := ''
-	Local cPar02    := ''
-	Local cPar03    := ''
-	Local cPar04    := ''
 	Local aParam    := {}
 	Local aRet      := {}
 	Local nTamMat   := GetSx3Cache( 'RA_MAT'  , 'X3_TAMANHO' )
@@ -540,6 +534,8 @@ User Function TRMX09()
 	Local cCargoDe  := Space( nTamCargo )
 	Local cMatAte   := Replicate( 'Z', nTamMat )
 	Local cCargoAte := Replicate( 'Z', nTamCargo )
+	Local aSRA      := {}
+	Local bBlockAux := Nil
 	
 	aAdd( aParam, { 1, 'Matricula De'  , cMatDe   , cPicMat  , '.T.', 'SRA02', '.T.', 90, .F. } )
 	aAdd( aParam, { 1, 'Matricula Até' , cMatAte  , cPicMat  , '.T.', 'SRA02', '.T.', 90, .F. } )
@@ -552,17 +548,39 @@ User Function TRMX09()
 		
 	End If
 	
-	cPar01 := aRet[ 1 ]
-	cPar02 := aRet[ 2 ]
-	cPar03 := aRet[ 3 ]
-	cPar04 := aRet[ 4 ]
+	//Monta array com a carga de dados dos funcionário a serem criticados
+	bBlockAux  := { || CarregaSRA( @aSRA, aRet[ 1 ], aRet[ 2 ], aRet[ 3 ], aRet[ 4 ] ) }
 	
-	BeginSql alias cAlias1
+	MsAguarde( bBlockAux, 'Carregando Funcionários ...', 'Aguarde...',.F. )
+	
+	
+Return
+
+/*/{Protheus.doc} CarregaSRA
+Monta array com a carga de dados dos funcionário a serem criticados.
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param array, aSRA, Array recebido por referência que será populado com os dados dos funcionários a serem criticados
+@param character, cMatDe, Limite mínimo do range de pesquisa de funcionários
+@param character, cMatAte, Limite máximo do range de pesquisa de funcionários
+@param character, cCargoDe, Limite mínimo do range de pesquisa de cargos
+@param character, cCargoAte, Limite máximo do range de pesquisa de cargos
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function CarregaSRA( aSRA, cMatDe, cMatAte, cCargoDe, cCargoAte )
+	
+	Local cAlias       := GetNextAlias()
+	Local aArea        := GetArea()
+	Local oFuncionario := Nil
+	
+	BeginSql alias cAlias
 		
 		SELECT DISTINCT
 		
 		SRA.RA_MAT,
-		SRA.RA_NOME,adm
+		SRA.RA_NOME,
 		SRA.RA_CARGO,
 		SQ3.Q3_DESCSUM,
 		SQ3.Q3_XESPECI
@@ -576,11 +594,286 @@ User Function TRMX09()
 		AND   SRA.%notDel%
 		AND   SQ3.%notDel%
 		AND   SRA.RA_SITFOLH <> 'D'
-		AND   SRA.RA_MAT   BETWEEN %exp:cPar01% AND %exp:cPar02%
-		AND   SRA.RA_CARGO BETWEEN %exp:cPar03% AND %exp:cPar04%
+		AND   SRA.RA_MAT   BETWEEN %exp:cMatDe%   AND %exp:cMatAte%
+		AND   SRA.RA_CARGO BETWEEN %exp:cCargoDe% AND %exp:cCargoAte%
 		
 		ORDER BY RA_MAT, RA_CARGO
 		
 	EndSql
+	
+	Do While (cAlias)->( ! Eof() )
+		
+		MsProcTxt( (cAlias)->( RA_MAT + ': ' + RA_NOME ) )
+		ProcessMessage()
+		
+		aAdd( aSRA, oFuncionario := Funcionario():New() )
+		
+		oFuncionario:cMat     := (cAlias)->RA_MAT
+		oFuncionario:cNome    := (cAlias)->RA_NOME
+		oFuncionario:cCargo   := (cAlias)->RA_CARGO
+		oFuncionario:cDescSum := (cAlias)->Q3_DESCSUM
+		oFuncionario:cXexpeci := (cAlias)->Q3_XESPECI
+		
+		// Popula o objeto que representa o funcionário com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
+		CarregaComp( oFuncionario )
+		
+		//TODO Implementar Função
+		// Verifica se o funcionário tem as competencias referentes ao cargo
+		// ChecaComp( oFuncionario )
+		
+		//TODO Implementar Função
+		// Verifica se o funcionário está apto ou inapto ao cargo eu exerce
+		// ChecaAptdao( oFuncionario )
+		
+		(cAlias)->( DbSkip() )
+		
+	End Do
+	
+	(cAlias)->( DbCloseArea() )
+	
+	RestArea( aArea )
+	
+	//TODO Implementar Função
+	// Gera relatório de crítica de competencias cargo X funcionário
+	// ChecaAptdao( aSRA )
+	
+Return
+
+/*/{Protheus.doc} CarregaComp
+Popula o objeto que representa o funcionário com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o cadastro do funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function CarregaComp( oFuncionario )
+	
+	Local cAlias       := GetNextAlias()
+	Local aArea        := GetArea()
+	Local cCargo       := oFuncionario:cCargo
+	Local aTipoComp    := { 'aFormacao', 'aCapacitacao', 'aCertificacao', 'aConhecimento' }
+	Local oCompetencia := Nil
+	
+	BeginSql alias cAlias
+		
+		// Fomação
+		SELECT
+		
+		ZS1.ZS1_ALTERN ALTERN,
+		ZS1.ZS1_CURSO CURSO,
+		RA1.RA1_DESC DESCR,
+		ZS1.ZS1_EXIGEN EXIGEN,
+		'ZS1' ORIGEM
+		
+		FROM %table:ZS1% ZS1
+		
+		LEFT JOIN %table:RA1% RA1
+		ON ZS1.ZS1_CURSO = RA1.RA1_CURSO
+		
+		WHERE ZS1.ZS1_CARGO = %exp:cCargo%
+		AND ZS1.%notDel%
+		AND RA1.%notDel%
+		
+		UNION ALL
+		
+		// Capacitação
+		SELECT
+		
+		ZS2.ZS2_ALTERN,
+		ZS2.ZS2_CURSO,
+		RA1.RA1_DESC,
+		ZS2.ZS2_EXIGEN,
+		'ZS2'
+		
+		FROM %table:ZS2% ZS2
+		
+		LEFT JOIN %table:RA1% RA1
+		ON ZS2.ZS2_CURSO = RA1.RA1_CURSO
+		
+		WHERE ZS2.ZS2_CARGO = %exp:cCargo%
+		AND ZS2.%notDel%
+		AND RA1.%notDel%
+		
+		UNION ALL
+		
+		// Certificação
+		SELECT
+		
+		ZS3.ZS3_ALTERN,
+		ZS3.ZS3_CURSO,
+		RA1.RA1_DESC,
+		ZS3.ZS3_EXIGEN,
+		'ZS3'
+		
+		FROM %table:ZS3% ZS3
+		
+		LEFT JOIN %table:RA1% RA1
+		ON ZS3.ZS3_CURSO = RA1.RA1_CURSO
+		
+		WHERE ZS3.ZS3_CARGO = %exp:cCargo%
+		AND ZS3.%notDel%
+		AND RA1.%notDel%
+		
+		UNION ALL
+		
+		// Conhecimento
+		SELECT
+		
+		ZS4.ZS4_ALTERN,
+		ZS4.ZS4_CONHEC,
+		SZ8.Z8_DESCRI,
+		ZS4.ZS4_EXIGEN,
+		'ZS4'
+		
+		FROM %table:ZS4% ZS4
+		
+		LEFT JOIN %table:SZ8% SZ8
+		ON ZS4.ZS4_CONHEC = SZ8.Z8_CODIGO
+		
+		WHERE ZS4.ZS4_CARGO = %exp:cCargo%
+		AND ZS4.%notDel%
+		AND SZ8.%notDel%
+		
+	EndSql
+	
+	Do While (cAlias)->( ! Eof() )
+		
+		oCompetencia := Competencia():New()
+		
+		oCompetencia:cGrupo       := (cAlias)->ALTERN
+		oCompetencia:cCodigo      := (cAlias)->CURSO
+		oCompetencia:cDescricao   := (cAlias)->DESCR
+		oCompetencia:cObrigatorio := If( (cAlias)->EXIGEN = '1', 'SIM', 'NÃO' )
+		
+		aAdd( Eval( { || &('oFuncionario:' + aTipoComp[ Val( SubStr( (cAlias)->ORIGEM, 3, 1 ) ) ] ) } ), oCompetencia )
+		
+		(cAlias)->( DbSkip() )
+		
+	End Do
+	
+	(cAlias)->( DbCloseArea() )
+	
+	RestArea( aArea )
+	
+Return
+
+/*/{Protheus.doc} Funcionario
+Classe que representa os dados do funcionário para efetua a crítica de competências do cargo x funcionário
+@project MAN0000038865_EF_002
+@type class Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Class Funcionario
+	
+	Data cMat
+	Data cNome
+	Data cCargo
+	Data cDescSum
+	Data cXexpeci
+	Data cSituacao
+	Data aFormacao
+	Data aCapacitacao
+	Data aCertificacao
+	Data aConhecimento
+	
+	Method New() Constructor
+	
+End Class
+
+/*/{Protheus.doc} New
+Método construtor da classe funcionario, inicializa os atributos com valores padrão conforme tipo definido na notação húngara
+@project MAN0000038865_EF_002
+@type method Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Method New() Class Funcionario
+	
+	InitObject( @Self )
+	
+Return Self
+
+/*/{Protheus.doc} Funcionario
+
+@project MAN0000038865_EF_002
+@type class Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Class Competencia
+	
+	Data cGrupo
+	Data cCodigo
+	Data cDescricao
+	Data cObrigatorio
+	Data cPossui
+	
+	Method New() Constructor
+	
+End Class
+
+/*/{Protheus.doc} New
+Método construtor da classe Competencia que irá receber as competência do cargo do funcinário, inicializa os atributos com valores padrão conforme tipo definido na notação húngara
+@project MAN0000038865_EF_002
+@type method Rotina Específica
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Method New() Class Competencia
+	
+	InitObject( @Self )
+	
+Return Self
+
+/*/{Protheus.doc} InitObject
+Funçao que inicializa os atributos de um objeto com valores padrão conforme tipo definido na notação húngara
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oObj, Objeto que terá os atributos iniciados recebido por referência
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function InitObject( oObj )
+	
+	Local aAtributos := ClassDataArr( oObj, .F. )
+	Local nX         := 0
+	
+	For nX := 1 To Len( aAtributos )
+		
+		If SubStr( aAtributos[ nX, 1 ], 1, 1 ) == 'A'
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := {} }' ) )
+			
+		ElseIf SubStr( aAtributos[ nX, 1 ], 1, 1 ) $ 'CM'
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := "" }' ) )
+			
+		ElseIf SubStr( aAtributos[ nX, 1 ], 1, 1 ) == 'D'
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := CtoD( "" ) }' ) )
+			
+		ElseIf SubStr( aAtributos[ nX, 1 ], 1, 1 ) == 'L'
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := .F. }' ) )
+			
+		ElseIf SubStr( aAtributos[ nX, 1 ], 1, 1 ) == 'N'
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := 0 }' ) )
+			
+		Else
+			
+			Eval( &( '{||oObj:' + aAtributos[ nX, 1 ] + ' := Nil }' ) )
+			
+		End If
+		
+	Next nX
 	
 Return
