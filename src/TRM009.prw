@@ -56,7 +56,6 @@ Static Function ModelDef()
 	Local oStrZS2 := FWFormStruct( 1, 'ZS2' )
 	Local oStrZS3 := FWFormStruct( 1, 'ZS3' )
 	Local oStrZS4 := FWFormStruct( 1, 'ZS4' )
-	Local aAux    := {}
 	
 	// Criando a Instância do Objeto que represento o Model
 	oModel := MPFormModel():New('MTRM009')
@@ -97,10 +96,10 @@ Static Function ModelDef()
 	oModel:GetModel( 'GRID_ZS4' ):SetUniqueLine( { 'ZS4_CONHEC' } )
 	
 	// Definindo que as View´s do tipo Grid irão trabalahar com aCols e aHeader
-	oModel:getModel('GRID_ZS1'):SetUseOldGrid(.T.)
-	oModel:getModel('GRID_ZS2'):SetUseOldGrid(.T.)
-	oModel:getModel('GRID_ZS3'):SetUseOldGrid(.T.)
-	oModel:getModel('GRID_ZS4'):SetUseOldGrid(.T.)
+	oModel:getModel('GRID_ZS1'):SetUseOldGrid( .T. )
+	oModel:getModel('GRID_ZS2'):SetUseOldGrid( .T. )
+	oModel:getModel('GRID_ZS3'):SetUseOldGrid( .T. )
+	oModel:getModel('GRID_ZS4'):SetUseOldGrid( .T. )
 	
 Return oModel
 
@@ -534,7 +533,6 @@ User Function TRMX09()
 	Local cCargoDe  := Space( nTamCargo )
 	Local cMatAte   := Replicate( 'Z', nTamMat )
 	Local cCargoAte := Replicate( 'Z', nTamCargo )
-	Local aSRA      := {}
 	Local bBlockAux := Nil
 	
 	aAdd( aParam, { 1, 'Matricula De'  , cMatDe   , cPicMat  , '.T.', 'SRA02', '.T.', 90, .F. } )
@@ -548,19 +546,18 @@ User Function TRMX09()
 		
 	End If
 	
-	//Monta array com a carga de dados dos funcionário a serem criticados
-	bBlockAux  := { || CarregaSRA( @aSRA, aRet[ 1 ], aRet[ 2 ], aRet[ 3 ], aRet[ 4 ] ) }
+	// Imprime a critica de competencias dos cargo x competencias do funcionário
+	bBlockAux  := { || Critica( aRet[ 1 ], aRet[ 2 ], aRet[ 3 ], aRet[ 4 ] ) }
 	
-	MsAguarde( bBlockAux, 'Carregando Funcionários ...', 'Aguarde...',.F. )
+	MsAguarde( bBlockAux, 'Criticando Funcionários ...', 'Aguarde...',.F. )
 	
 	
 Return
 
-/*/{Protheus.doc} CarregaSRA
-Monta array com a carga de dados dos funcionário a serem criticados.
+/*/{Protheus.doc} Critica
+Critica lista de funcionários conforme range de matriculas e cargos
 @project MAN0000038865_EF_002
 @type function Rotina Específica
-@param array, aSRA, Array recebido por referência que será populado com os dados dos funcionários a serem criticados
 @param character, cMatDe, Limite mínimo do range de pesquisa de funcionários
 @param character, cMatAte, Limite máximo do range de pesquisa de funcionários
 @param character, cCargoDe, Limite mínimo do range de pesquisa de cargos
@@ -569,11 +566,12 @@ Monta array com a carga de dados dos funcionário a serem criticados.
 @author TOTVS
 @since 14/11/2018
 /*/
-Static Function CarregaSRA( aSRA, cMatDe, cMatAte, cCargoDe, cCargoAte )
+Static Function Critica( cMatDe, cMatAte, cCargoDe, cCargoAte )
 	
-	Local cAlias       := GetNextAlias()
-	Local aArea        := GetArea()
-	Local oFuncionario := Nil
+	Local cAlias        := GetNextAlias()
+	Local aArea         := GetArea()
+	Local oFuncionario  := Nil
+	Local aFuncionarios := {}  
 	
 	BeginSql alias cAlias
 		
@@ -606,24 +604,13 @@ Static Function CarregaSRA( aSRA, cMatDe, cMatAte, cCargoDe, cCargoAte )
 		MsProcTxt( (cAlias)->( RA_MAT + ': ' + RA_NOME ) )
 		ProcessMessage()
 		
-		aAdd( aSRA, oFuncionario := Funcionario():New() )
+		aAdd( aFuncionarios, oFuncionario := Funcionario():New() )
 		
 		oFuncionario:cMat     := (cAlias)->RA_MAT
 		oFuncionario:cNome    := (cAlias)->RA_NOME
 		oFuncionario:cCargo   := (cAlias)->RA_CARGO
 		oFuncionario:cDescSum := (cAlias)->Q3_DESCSUM
 		oFuncionario:cXexpeci := (cAlias)->Q3_XESPECI
-		
-		// Popula o objeto que representa o funcionário com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
-		CarregaComp( oFuncionario )
-		
-		//TODO Implementar Função
-		// Verifica se o funcionário tem as competencias referentes ao cargo
-		// ChecaComp( oFuncionario )
-		
-		//TODO Implementar Função
-		// Verifica se o funcionário está apto ou inapto ao cargo eu exerce
-		// ChecaAptdao( oFuncionario )
 		
 		(cAlias)->( DbSkip() )
 		
@@ -633,34 +620,46 @@ Static Function CarregaSRA( aSRA, cMatDe, cMatAte, cCargoDe, cCargoAte )
 	
 	RestArea( aArea )
 	
+	// Popula os objetos que representam os funcionários com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
+	CarregaComp( @aFuncionarios, cCargoDe, cCargoAte  )
+	
+	// Verifica se o funcionário tem as competencias referentes ao cargo
+	ChecaComp( @aFuncionarios )
+	
+	// Valida se o funcionário está apto ou inapto ao cargo eu exerce
+	ValidaAptdao( @aFuncionarios )
+	
 	//TODO Implementar Função
 	// Gera relatório de crítica de competencias cargo X funcionário
-	// ChecaAptdao( aSRA )
+	// Imprimir( aFuncionarios )
 	
 Return
 
 /*/{Protheus.doc} CarregaComp
-Popula o objeto que representa o funcionário com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
+Popula os objetos que representam os funcionários com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
 @project MAN0000038865_EF_002
 @type function Rotina Específica
-@param object, oFuncionario, Objeto que representa o cadastro do funcionário
+@param array, aFuncionarios, Array recebido por referência que será populado com os dados das competencias do cargo dos funcionários a serem criticados
+@param character, cCargoDe, Limite mínimo do range de pesquisa de cargos
+@param character, cCargoAte, Limite máximo do range de pesquisa de cargos
 @version P12
 @author TOTVS
 @since 14/11/2018
 /*/
-Static Function CarregaComp( oFuncionario )
+Static Function CarregaComp( aFuncionarios, cCargoDe, cCargoAte  )
 	
 	Local cAlias       := GetNextAlias()
 	Local aArea        := GetArea()
-	Local cCargo       := oFuncionario:cCargo
-	Local aTipoComp    := { 'aFormacao', 'aCapacitacao', 'aCertificacao', 'aConhecimento' }
-	Local oCompetencia := Nil
+	Local oFuncionario := Nil
+	Local nX           := 0
 	
+	// Faz busca no banco das fomrações, capacitações, certificações e conhecimentos dos cargos do range cCargoDe x cCargoAte
 	BeginSql alias cAlias
 		
 		// Fomação
 		SELECT
 		
+		ZS1.ZS1_CARGO CARGO,
 		ZS1.ZS1_ALTERN ALTERN,
 		ZS1.ZS1_CURSO CURSO,
 		RA1.RA1_DESC DESCR,
@@ -672,7 +671,7 @@ Static Function CarregaComp( oFuncionario )
 		LEFT JOIN %table:RA1% RA1
 		ON ZS1.ZS1_CURSO = RA1.RA1_CURSO
 		
-		WHERE ZS1.ZS1_CARGO = %exp:cCargo%
+		WHERE ZS1.ZS1_CARGO BETWEEN %exp:cCargoDe% AND %exp:cCargoAte%
 		AND ZS1.%notDel%
 		AND RA1.%notDel%
 		
@@ -681,6 +680,7 @@ Static Function CarregaComp( oFuncionario )
 		// Capacitação
 		SELECT
 		
+		ZS2.ZS2_CARGO,
 		ZS2.ZS2_ALTERN,
 		ZS2.ZS2_CURSO,
 		RA1.RA1_DESC,
@@ -692,7 +692,7 @@ Static Function CarregaComp( oFuncionario )
 		LEFT JOIN %table:RA1% RA1
 		ON ZS2.ZS2_CURSO = RA1.RA1_CURSO
 		
-		WHERE ZS2.ZS2_CARGO = %exp:cCargo%
+		WHERE ZS2.ZS2_CARGO BETWEEN %exp:cCargoDe% AND %exp:cCargoAte%
 		AND ZS2.%notDel%
 		AND RA1.%notDel%
 		
@@ -701,6 +701,7 @@ Static Function CarregaComp( oFuncionario )
 		// Certificação
 		SELECT
 		
+		ZS3.ZS3_CARGO,
 		ZS3.ZS3_ALTERN,
 		ZS3.ZS3_CURSO,
 		RA1.RA1_DESC,
@@ -712,7 +713,7 @@ Static Function CarregaComp( oFuncionario )
 		LEFT JOIN %table:RA1% RA1
 		ON ZS3.ZS3_CURSO = RA1.RA1_CURSO
 		
-		WHERE ZS3.ZS3_CARGO = %exp:cCargo%
+		WHERE ZS3.ZS3_CARGO BETWEEN %exp:cCargoDe% AND %exp:cCargoAte%
 		AND ZS3.%notDel%
 		AND RA1.%notDel%
 		
@@ -721,6 +722,7 @@ Static Function CarregaComp( oFuncionario )
 		// Conhecimento
 		SELECT
 		
+		ZS4.ZS4_CARGO,
 		ZS4.ZS4_ALTERN,
 		ZS4.ZS4_CONHEC,
 		SZ8.Z8_DESCRI,
@@ -732,32 +734,559 @@ Static Function CarregaComp( oFuncionario )
 		LEFT JOIN %table:SZ8% SZ8
 		ON ZS4.ZS4_CONHEC = SZ8.Z8_CODIGO
 		
-		WHERE ZS4.ZS4_CARGO = %exp:cCargo%
+		WHERE ZS4.ZS4_CARGO BETWEEN %exp:cCargoDe% AND %exp:cCargoAte%
 		AND ZS4.%notDel%
 		AND SZ8.%notDel%
 		
+		ORDER BY 6, 2, 1, 3
+		
 	EndSql
 	
-	Do While (cAlias)->( ! Eof() )
+	// Percorre lista de funcionários e popula com dados das competências do cargo
+	For nX := 1 To Len( aFuncionarios )
 		
-		oCompetencia := Competencia():New()
+		oFuncionario := aFuncionarios[ nX ]
 		
-		oCompetencia:cGrupo       := (cAlias)->ALTERN
-		oCompetencia:cCodigo      := (cAlias)->CURSO
-		oCompetencia:cDescricao   := (cAlias)->DESCR
-		oCompetencia:cObrigatorio := If( (cAlias)->EXIGEN = '1', 'SIM', 'NÃO' )
+		SetaComp( oFuncionario, cAlias )
 		
-		aAdd( Eval( { || &('oFuncionario:' + aTipoComp[ Val( SubStr( (cAlias)->ORIGEM, 3, 1 ) ) ] ) } ), oCompetencia )
-		
-		(cAlias)->( DbSkip() )
-		
-	End Do
+	Next nX
 	
 	(cAlias)->( DbCloseArea() )
 	
 	RestArea( aArea )
 	
 Return
+
+/*/{Protheus.doc} SetaComp
+Popula os objetos que representam os funcionários com as formações, capacitações, certificações e conhecimentos do cargo que ele exerce
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@param array, cAlias, Nome da tabela temporária com a consulta dos dados de compentências dos cargos pesquisados
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function SetaComp( oFuncionario, cAlias )
+	
+	Local oCompetencia := Nil
+	
+	// Posiciona no início da tabela
+	(cAlias)->( DbGoTop() )
+	
+	// Percorre tabela e atribui ao cargo do funcionário
+	// as competências do correspondentes
+	Do While (cAlias)->( ! Eof() )
+		
+		// Se for o mesmo cargo do funcionário atibui a competência
+		If AllTrim( oFuncionario:cCargo ) == AllTrim( (cAlias)->CARGO )
+			
+			oCompetencia := Competencia():New()
+			
+			oCompetencia:cGrupo       := (cAlias)->ALTERN
+			oCompetencia:cCodigo      := (cAlias)->CURSO
+			oCompetencia:cDescricao   := (cAlias)->DESCR
+			oCompetencia:cObrigatorio := If( (cAlias)->EXIGEN = '1', 'SIM', 'NÃO' )
+			
+			// Atribuindo Formação
+			If (cAlias)->ORIGEM == 'ZS1'
+				
+				aAdd( oFuncionario:aFormacao, oCompetencia )
+				
+				// Atribuindo Capacitação
+			ElseIf (cAlias)->ORIGEM == 'ZS2'
+				
+				aAdd( oFuncionario:aCapacitacao, oCompetencia )
+				
+				// Atribuindo Certificação
+			ElseIf (cAlias)->ORIGEM == 'ZS3'
+				
+				aAdd( oFuncionario:aCertificacao, oCompetencia )
+				
+				// Atribuindo Conhecimento
+			ElseIf (cAlias)->ORIGEM == 'ZS4'
+				
+				aAdd( oFuncionario:aConhecimento, oCompetencia )
+				
+			End IF
+			
+		End If
+		
+		(cAlias)->( DbSkip() )
+		
+	End Do
+	
+Return
+
+/*/{Protheus.doc} ChecaComp
+Verifica se o funcionário tem as competencias referentes ao cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param array, aFuncionarios, Array recebido por referência que será criticado quanto a exitência da Formação, Capacitação, Certificação e Conhecimento do cargo para o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ChecaComp( aFuncionarios )
+	
+	Local aArea    := GetArea()
+	Local aAreaRA4 := RA4->( GetArea() )
+	Local aAreaSZ9 := SZ9->( GetArea() )
+	Local nX       := 1
+	
+	DbSelectArea( 'RA4' )
+	RA4->( DbSetOrder( 1 ) ) // RA4_FILIAL + RA4_MAT + RA4_CURSO
+	
+	DbSelectArea( 'SZ9' )
+	SZ9->( DbSetOrder( 3 ) ) // Z9_FILIAL + Z9_MAT + Z9_CONHEC
+	
+	For nX := 1 To Len( aFuncionarios )
+		
+		ChecaForm( aFuncionarios[ nX ] )
+		
+		ChecaCapac( aFuncionarios[ nX ] )
+		
+		ChecaCert( aFuncionarios[ nX ] )
+		
+		ChecaConh( aFuncionarios[ nX ] )
+		
+	Next nX
+	
+	RestArea( aAreaRA4 )
+	RestArea( aAreaSZ9 )
+	RestArea( aArea    )
+	
+Return
+
+/*/{Protheus.doc} ChecaForm
+Checa se a o funcionário tem as Formações do seu cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ChecaForm( oFuncionario )
+	
+	Local nX       := 0
+	Local cFil     := xFilial( 'RA4' )
+	Local cMat     := ''
+	Local cCodForm := ''
+	Local cSeek    := ''
+	
+	For nX := 1 To Len( oFuncionario:aFormacao )
+		
+		cMat     := oFuncionario:cMat
+		cCodForm := oFuncionario:aFormacao[ nX ]:cCodigo
+		
+		cSeek := cFil + cMat + cCodForm
+		
+		If RA4->( DbSeek( cSeek ) )
+			
+			oFuncionario:aFormacao[ nX ]:cPossui := 'SIM'
+			
+		Else
+			
+			oFuncionario:aFormacao[ nX ]:cPossui := 'NÃO'
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} ChecaCapac
+Checa se a o funcionário tem as Capacitações do seu cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ChecaCapac( oFuncionario )
+	
+	Local nX       := 0
+	Local cFil     := xFilial( 'RA4' )
+	Local cMat     := ''
+	Local cCodForm := ''
+	Local cSeek    := ''
+	
+	For nX := 1 To Len( oFuncionario:aCapacitacao )
+		
+		cMat     := oFuncionario:cMat
+		cCodForm := oFuncionario:aCapacitacao[ nX ]:cCodigo
+		
+		cSeek := cFil + cMat + cCodForm
+		
+		If RA4->( DbSeek( cSeek ) )
+			
+			oFuncionario:aCapacitacao[ nX ]:cPossui := 'SIM'
+			
+		Else
+			
+			oFuncionario:aCapacitacao[ nX ]:cPossui := 'NÃO'
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} ChecaCert
+Checa se a o funcionário tem as Certificações do seu cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ChecaCert( oFuncionario )
+	
+	Local nX       := 0
+	Local cFil     := xFilial( 'RA4' )
+	Local cMat     := ''
+	Local cCodForm := ''
+	Local cSeek    := ''
+	
+	For nX := 1 To Len( oFuncionario:aCertificacao )
+		
+		cMat     := oFuncionario:cMat
+		cCodForm := oFuncionario:aCertificacao[ nX ]:cCodigo
+		
+		cSeek := cFil + cMat + cCodForm
+		
+		If RA4->( DbSeek( cSeek ) )
+			
+			oFuncionario:aCertificacao[ nX ]:cPossui := 'SIM'
+			
+		Else
+			
+			oFuncionario:aCertificacao[ nX ]:cPossui := 'NÃO'
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} ChecaConh
+Checa se a o funcionário tem as Conhecimentos do seu cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ChecaConh( oFuncionario )
+	
+	Local nX       := 0
+	Local cFil     := xFilial( 'SZ9' )
+	Local cMat     := ''
+	Local cCodForm := ''
+	Local cSeek    := ''
+	
+	For nX := 1 To Len( oFuncionario:aConhecimento )
+		
+		cMat     := oFuncionario:cMat
+		cCodForm := oFuncionario:aConhecimento[ nX ]:cCodigo
+		
+		cSeek := cFil + cMat + cCodForm
+		
+		If SZ9->( DbSeek( cSeek ) )
+			
+			oFuncionario:aConhecimento[ nX ]:cPossui := 'SIM'
+			
+		Else
+			
+			oFuncionario:aConhecimento[ nX ]:cPossui := 'NÃO'
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} ValidaAptdao
+Valida se o funcionário está apto ou inapto ao cargo que exerce
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param array, aFuncionarios, Array passado por referência com a lista de funcionários
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ValidaAptdao( aFuncionarios )
+	
+	Local nX := 0
+	
+	For nX := 1 To Len( aFuncionarios )
+		
+		aFuncionarios[ nX ]:cSituacao := 'APTO'
+		
+		If !( ValidaForm( aFuncionarios[nX] ) .And.;
+				ValidaCapac( aFuncionarios[nX] ) .And.;
+				ValidaCert( aFuncionarios[nX] ) .And.;
+				ValidaConh( aFuncionarios[nX] ) )
+			
+			aFuncionarios[ nX ]:cSituacao := 'INAPTO'
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} ValidaForm
+Valida se o funcionário tem a formação necessária para o cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ValidaForm( oFuncionario )
+	
+	Local aGrupos := {}
+	Local nX      := 0
+	Local lRet    := .T.
+	Local cGrupo  := ''
+	
+	// Verifica os grupos de alternativas existentes
+	For nX := 1 To Len( oFuncionario:aFormacao )
+		
+		cGrupo := oFuncionario:aFormacao[ nX ]:cGrupo
+		
+		If ! Empty(cGrupo) .And. aScan( aGrupos, cGrupo ) == 0
+			
+			aAdd( aGrupos, cGrupo )
+			
+		End If
+		
+	Next nX
+	
+	// Valida as formações sem vinculo a grupos
+	// Se alguma formação obrigatória estiver com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If aScan( oFuncionario:aFormacao, { | oFormacao | Empty( oFormacao:cGrupo ) .And.;
+			oFormacao:cPossui == 'NÃO' .And. oFormacao:cObrigatorio == 'SIM' }  ) # 0
+		
+		lRet := .F.
+		
+	End If
+	
+	// Se as formações não vinculadas a um grupo estiverem validas
+	// Então valida as aptidões com vinculo a grupos
+	// Se todas as formações do grupo de alternativas estiverem com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If lRet
+		
+		For nX := 1 To Len( aGrupos )
+			
+			If aScan( oFuncionario:aFormacao, { | oFormacao | AllTrim( oFormacao:cGrupo ) == AllTrim( aGrupos[ nX ] ) .And.;
+					oFormacao:cPossui == 'SIM' }  ) == 0
+				
+				lRet := .F.
+				
+				Exit
+				
+			End If
+			
+		Next nX
+		
+	End If
+	
+Return lRet
+
+/*/{Protheus.doc} ValidaCapac
+Valida se o funcionário tem a capacitação necessária para o cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ValidaCapac( oFuncionario )
+	
+	Local aGrupos := {}
+	Local nX      := 0
+	Local lRet    := .T.
+	Local cGrupo  := ''
+	
+	// Verifica os grupos de alternativas existentes
+	For nX := 1 To Len( oFuncionario:aCapacitacao )
+		
+		cGrupo := oFuncionario:aCapacitacao[ nX ]:cGrupo
+		
+		If ! Empty(cGrupo) .And. aScan( aGrupos, cGrupo ) == 0
+			
+			aAdd( aGrupos, cGrupo )
+			
+		End If
+		
+	Next nX
+	
+	// Valida as capacitações sem vinculo a grupos
+	// Se alguma capacitação obrigatória estiver com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If aScan( oFuncionario:aCapacitacao, { | oCapacitacao | Empty( oCapacitacao:cGrupo ) .And.;
+			oCapacitacao:cPossui == 'NÃO' .And. oCapacitacao:cObrigatorio == 'SIM' }  ) # 0
+		
+		lRet := .F.
+		
+	End If
+	
+	// Se as capacitações não vinculadas a um grupo estiverem validas
+	// Então valida as aptidões com vinculo a grupos
+	// Se todas as capacitações do grupo de alternativas estiverem com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If lRet
+		
+		For nX := 1 To Len( aGrupos )
+			
+			If aScan( oFuncionario:aCapacitacao, { | oCapacitacao | AllTrim( oCapacitacao:cGrupo ) == AllTrim( aGrupos[ nX ] ) .And.;
+					oCapacitacao:cPossui == 'SIM' }  ) == 0
+				
+				lRet := .F.
+				
+				Exit
+				
+			End If
+			
+		Next nX
+		
+	End If
+	
+Return lRet
+
+/*/{Protheus.doc} ValidaCert
+Valida se o funcionário tem a certificação necessária para o cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ValidaCert( oFuncionario )
+	
+	Local aGrupos := {}
+	Local nX      := 0
+	Local lRet    := .T.
+	Local cGrupo  := ''
+	
+	// Verifica os grupos de alternativas existentes
+	For nX := 1 To Len( oFuncionario:aCertificacao )
+		
+		cGrupo := oFuncionario:aCertificacao[ nX ]:cGrupo
+		
+		If ! Empty(cGrupo) .And. aScan( aGrupos, cGrupo ) == 0
+			
+			aAdd( aGrupos, cGrupo )
+			
+		End If
+		
+	Next nX
+	
+	// Valida as certificações sem vinculo a grupos
+	// Se alguma certificação obrigatória estiver com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If aScan( oFuncionario:aCertificacao, { | oCertificacao | Empty( oCertificacao:cGrupo ) .And.;
+			oCertificacao:cPossui == 'NÃO' .And. oCertificacao:cObrigatorio == 'SIM' }  ) # 0
+		
+		lRet := .F.
+		
+	End If
+	
+	// Se as certificações não vinculadas a um grupo estiverem validas
+	// Então valida as aptidões com vinculo a grupos
+	// Se todas as certificações do grupo de alternativas estiverem com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If lRet
+		
+		For nX := 1 To Len( aGrupos )
+			
+			If aScan( oFuncionario:aCertificacao, { | oCertificacao | AllTrim( oCertificacao:cGrupo ) == AllTrim( aGrupos[ nX ] ) .And.;
+					oCertificacao:cPossui == 'SIM' }  ) == 0
+				
+				lRet := .F.
+				
+				Exit
+				
+			End If
+			
+		Next nX
+		
+	End If
+	
+Return lRet
+
+/*/{Protheus.doc} ValidaConh
+Valida se o funcionário tem o conhecimento necessário para o cargo
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@param object, oFuncionario, Objeto que representa o funcionário
+@version P12
+@author TOTVS
+@since 14/11/2018
+/*/
+Static Function ValidaConh( oFuncionario )
+	
+	Local aGrupos := {}
+	Local nX      := 0
+	Local lRet    := .T.
+	Local cGrupo  := ''
+	
+	// Verifica os grupos de alternativas existentes
+	For nX := 1 To Len( oFuncionario:aConhecimento )
+		
+		cGrupo := oFuncionario:aConhecimento[ nX ]:cGrupo
+		
+		If ! Empty(cGrupo) .And. aScan( aGrupos, cGrupo ) == 0
+			
+			aAdd( aGrupos, cGrupo )
+			
+		End If
+		
+	Next nX
+	
+	// Valida as certificações sem vinculo a grupos
+	// Se alguma certificação obrigatória estiver com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If aScan( oFuncionario:aConhecimento, { | oConhecimento | Empty( oConhecimento:cGrupo ) .And.;
+			oConhecimento:cPossui == 'NÃO' .And. oConhecimento:cObrigatorio == 'SIM' }  ) # 0
+		
+		lRet := .F.
+		
+	End If
+	
+	// Se as certificações não vinculadas a um grupo estiverem validas
+	// Então valida as aptidões com vinculo a grupos
+	// Se todas as certificações do grupo de alternativas estiverem com cPossui == 'NÃO'
+	// Define como inapto para o cargo
+	If lRet
+		
+		For nX := 1 To Len( aGrupos )
+			
+			If aScan( oFuncionario:aConhecimento, { | oConhecimento | AllTrim( oConhecimento:cGrupo ) == AllTrim( aGrupos[ nX ] ) .And.;
+					oConhecimento:cPossui == 'SIM' }  ) == 0
+				
+				lRet := .F.
+				
+				Exit
+				
+			End If
+			
+		Next nX
+		
+	End If
+	
+Return lRet
 
 /*/{Protheus.doc} Funcionario
 Classe que representa os dados do funcionário para efetua a crítica de competências do cargo x funcionário
@@ -877,3 +1406,4 @@ Static Function InitObject( oObj )
 	Next nX
 	
 Return
+
