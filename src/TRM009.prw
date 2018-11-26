@@ -1491,11 +1491,11 @@ Static Function ReportDef( aFuncionarios )
 	// section dos sconhecimentos
 	oSection5 := TRSection():New( oReport, 'Section5' )
 
-	TRCell():New( oSection4, 'GRUPO'       , , 'Grupo'       , /*Picture*/, /*Tamanho*/  )
-	TRCell():New( oSection4, 'CODIGO'      , , 'Código'      , /*Picture*/, /*Tamanho*/  )
-	TRCell():New( oSection4, 'DESCRICAO'   , , 'Descrição'   , /*Picture*/, /*Tamanho*/  )
-	TRCell():New( oSection4, 'OBRIGATORIO' , , 'Obrigatório' , /*Picture*/, /*Tamanho*/  )
-	TRCell():New( oSection4, 'POSSUI'      , , 'Possui'      , /*Picture*/, /*Tamanho*/  )
+	TRCell():New( oSection5, 'GRUPO'       , , 'Grupo'       , /*Picture*/, /*Tamanho*/  )
+	TRCell():New( oSection5, 'CODIGO'      , , 'Código'      , /*Picture*/, /*Tamanho*/  )
+	TRCell():New( oSection5, 'DESCRICAO'   , , 'Descrição'   , /*Picture*/, /*Tamanho*/  )
+	TRCell():New( oSection5, 'OBRIGATORIO' , , 'Obrigatório' , /*Picture*/, /*Tamanho*/  )
+	TRCell():New( oSection5, 'POSSUI'      , , 'Possui'      , /*Picture*/, /*Tamanho*/  )
 
 
 Return oReport
@@ -1569,9 +1569,9 @@ Static Function PrintReport( oReport, aFuncionarios )
 			oReport:PrintText( 'Certificação do Funcionário' )
 			oReport:PrintText( '---------------------------' )
 
-		End If
-
 		PrintCert( oSection4, aFuncionarios[ nX ] )
+
+		End If
 
 		// Section Conhecimento do funcionário
 
