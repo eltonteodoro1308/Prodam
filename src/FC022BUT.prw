@@ -49,10 +49,17 @@ Static Function Fluxo2Excel( aParam )
 	Local aSldInicial := {}
 	Local aSldFinal   := {}
 	Local aColunas    := {}
+	Local aFluxo      := {}
+	Local oNatureza   := Nil
+	Local nTotal      := 0
+	Local nSaldo      := 0
 	Local cNat        := ''
 	Local nX          := 0
-	Local lExecuta    := .F.
+	Local lExecuta    := .T.
+	U_Tab2TXT( cAlias )
 	
+	lExecuta := lExecuta .And. lFluxSint // Verifica se Fluxo é Sintético
+	lExecuta := lExecuta .And. MV_PAR13 == 2 // Verifica se exibe Naturezas Sintéticas
 	lExecuta := cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 	
 	If MV_PAR05 == 1
@@ -78,6 +85,10 @@ Static Function Fluxo2Excel( aParam )
 	If ! lExecuta // Se Alguma condição não for atendida exibe mensagem para o usuário e encerra a função
 		
 		AutoGrLog( 'Permitido Executar Apenas para:' )
+		AutoGrLog( '' )
+		AutoGrLog( '- Fluxo definido como Sintético' )
+		AutoGrLog( '' )
+		AutoGrLog( '- Definir para não exibir as naturezas sintéticas' )
 		AutoGrLog( '' )
 		AutoGrLog( '- Período em Dias ou Meses.')
 		AutoGrLog( '' )
@@ -148,122 +159,89 @@ Static Function Fluxo2Excel( aParam )
 		MsProcTxt( 'Montando Linhas: ' + cNat )
 		ProcessMessage()
 		
-		If 'SALDOS INICIAIS' $ cNat
+		If (cAlias)->( AllTrim( SEQ ) $ '/001/002/' .And. Alltrim( CART ) $ 'PR' )
 			
-			aAdd( aColunas, 'SALDO INICIAL' )
+			oNatureza := FC022NAT():New()
 			
-		ElSeIf 'TOTAIS DE ENTRADAS' $ cNat
+			oNatureza:cCodigo   := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 1 ] )
+			oNatureza:cNatureza := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 2 ] )
+			oNatureza:cCondicao := Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_COND' )
+			oNatureza:cTipo     := IF( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_TIPO' )=='1','S','A')
+			oNatureza:cPai      := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_PAI' ) )
+			oNatureza:cSeq      := (cAlias)->SEQ
+			oNatureza:cCart     := (cAlias)->CART
 			
-			aAdd( aColunas, 'INGRESSOS' )
-			
-		ElSeIf 'TOTAIS DE SAIDAS' $ cNat
-			
-			aAdd( aColunas, 'DESEMBOLSOS' )
-			
-		ElSeIf 'SALDO OPERACIONAL' $ cNat
-			
-			aAdd( aColunas, 'LÍQUIDO' )
-			
-		ElSeIf 'SALDO FINAL' $ cNat
-			
-			aAdd( aColunas, 'SALDO FINAL' )
-			
-		Else
-			
-			aAdd( aColunas, cNat )
-			
-		End If
-		
-		
-		// Popula os arrays com saldos da naturezas de entrada e saída
-		
-		// Fluxo Diário
-		If MV_PAR05 = 1
-			
-			For nX := 1 To Day( LastDate ( MV_PAR04 ) )
+			// Fluxo Diário
+			If MV_PAR05 = 1
 				
-				aAdd( aColunas, (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) )
+				For nX := 1 To Day( LastDate ( MV_PAR04 ) )
+					
+					aAdd( oNatureza:aSaldos, (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) )
+					
+				Next nX
 				
-			Next nX
-			
-			// Fluxo Anual
-		ElseIf MV_PAR05 = 3
-			
-			For nX := 1 To 12
+				// Fluxo Anual
+			ElseIf MV_PAR05 = 3
 				
-				If nMesBase >= nX
+				For nX := 1 To 12
 					
-					aAdd( aColunas, (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) )
+					If nMesBase >= nX // Se Mês maior ou igual ao corrente inclui o realizado
+						
+						nSaldo := (cAlias)->&('REAL0' + StrZero( nX, 2 ) )
+						
+						nTotal += nSaldo
+						
+						aAdd( oNatureza:aSaldos, nSaldo )
+						
+						
+					Else // Senão inclui o ORÇADO
+						
+						nSaldo := (cAlias)->&('ORC0' + StrZero( nX, 2 ) )
+						
+						nTotal += nSaldo
+						
+						aAdd( oNatureza:aSaldos, nSaldo )
+						
+					End If
 					
-				Else
-					
-					aAdd( aColunas, (cAlias)->&('ORC0' + StrZero( nX, 2 ) ) )
-					
-				End If
+				Next nX
 				
-			Next nX
-			
-			aAdd( aColunas, (cAlias)->( ORCTOT + REALTOT ) )
-			
-		End If
-		
-		// Popula os array´s com os totais do perído
-		If 'SALDOS INICIAIS' $ cNat
-			
-			aAdd( aSldInicial, aClone( aColunas ) )
-			
-		ElSeIf 'TOTAIS DE ENTRADAS' $ cNat
-			
-			aAdd( aIngresso, aClone( aColunas ) )
-			
-		ElSeIf 'TOTAIS DE SAIDAS' $ cNat
-			
-			aAdd( aDesembolso, aClone( aColunas ) )
-			
-		ElSeIf 'SALDO OPERACIONAL' $ cNat
-			
-			aAdd( aSldLiquido, aClone( aColunas ) )
-			
-		ElSeIf 'SALDO FINAL' $ cNat
-			
-			aAdd( aSldFinal, aClone( aColunas ) )
-			
-		Else
-			
-			If ! IsZerada( aColunas )
+				aAdd( oNatureza:aSaldos, nTotal )
 				
-				If AllTrim( (cAlias)->CART ) == 'R'
-					
-					aAdd( aLinEntrada, aClone( aColunas ) )
-					
-				ElseIf AllTrim( (cAlias)->CART ) == 'P'
-					
-					aAdd( aLinSaida, aClone( aColunas ) )
-					
-				End If
+				nTotal := 0
 				
 			End If
 			
+			//TODO Ajustar para não incluir conta com todos os saldos zerados
+			aAdd( aFluxo, oNatureza )
+			
 		End If
-		
-		aSize( aColunas, 0 )
 		
 		(cAlias)->( DbSkip() )
 		
 	End Do
 	
+	//TODO Tratar para popular os array´s
+	//TODO aLinEntrada
+	//TODO aLinSaida
+	//TODO aIngresso
+	//TODO aDesembolso
+	//TODO aSldLiquido
+	//TODO aSldInicial
+	//TODO aSldFinal
+	
 	// Ajuste de contas de ingresso com desemboldo e de desembolso com ingresso
 	AjIngrDes( @aIngresso, @aLinEntrada, @aDesembolso, @aLinSaida )
 	
 	//Ordena o código das naturezas de ingressos e desembolsos
-	aSort( aLinEntrada,,, { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
-	aSort( aLinSaida,,,   { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
+	//aSort( aLinEntrada,,, { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
+	//aSort( aLinSaida ,,,  { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
 	
 	RestArea( aAreaAlias )
 	RestArea( aArea )
 	
 	// Executa função para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
-	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
+	//ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 	
 Return
 
@@ -325,7 +303,7 @@ Static Function IsZerada( aColunas )
 	Local lRet := .T.
 	Local nX   := 0
 	
-	For nX := 2 To Len( aColunas )
+	For nX := 1 To Len( aColunas )
 		
 		If aColunas[ nX ] # 0
 			
@@ -689,3 +667,85 @@ Static Function Transforma( cItem )
 	Next nX
 	
 Return cRet
+
+User Function Tab2TXT( cAlias )
+	
+	Local cTxt := ''
+	Local nX   := 0
+	
+	( cAlias )->( DbGoTop() )
+	
+	For nX := 1 To ( cAlias )->( FCount() )
+		
+		cTxt += FieldName( nX )
+		
+		If nX # ( cAlias )->( FCount() )
+			
+			cTxt += ';'
+			
+		End If
+		
+	Next nX
+	
+	cTxt += Chr( 13 ) + Chr( 10 )
+	
+	Do While ( cAlias )->( ! Eof() )
+		
+		For nX := 1 To ( cAlias )->( FCount() )
+			
+			If ValType( ( cAlias )->( FieldGet( nX ) ) ) == 'N'
+				
+				cTxt += StrTran(cValToChar( ( cAlias )->( FieldGet( nX ) ) ), '.', ',' )
+				
+			Else
+				
+				cTxt += ( cAlias )->( FieldGet( nX ) )
+				
+			End If
+			
+			If nX # ( cAlias )->( FCount() )
+				
+				cTxt += ';'
+				
+			End If
+			
+		Next nX
+		
+		( cAlias )->( DbSkip() )
+		
+		cTxt += Chr( 13 ) + Chr( 10 )
+		
+	End Do
+	
+	MemoWrite( 'c:/temp/' + FWTimeStamp() + '.csv', cTxt )
+	
+Return
+
+
+Class FC022NAT
+	
+	Data cCodigo
+	Data cNatureza
+	Data cCondicao // Receita // Despesa
+	Data cTipo // Sintetico // Analitico
+	Data cPai
+	Data cSeq // 0 // 1 // 2 // 900 // 999
+	Data cCart // P // R // Z
+	Data aSaldos
+	
+	Method New( ) Constructor
+	
+End Class
+
+Method New() Class FC022NAT
+	
+	::cCodigo   := ''
+	::cNatureza := ''
+	::cCondicao := ''
+	::cTipo     := ''
+	::cPai      := ''
+	::cSeq      := ''
+	::cCart     := ''
+	::aSaldos   := {}
+	
+Return Self
