@@ -1537,36 +1537,36 @@ Static Function PrintReport( oReport, aFuncionarios )
 
 		oSection1:Finish()
 
-		// Section Formação do funcionário
+		// Section Formação do Cargo
 
 		If ! Empty( aFuncionarios[ nX ]:aFormacao )
 
 			oReport:PrintText( '' )
-			oReport:PrintText( 'Formação do Funcionário' )
+			oReport:PrintText( 'Formação do Cargo' )
 			oReport:PrintText( '-----------------------' )
 
 			PrintForm( oSection2, aFuncionarios[ nX ] )
 
 		End If
 
-		// Section Capacitação do funcionário
+		// Section Capacitação do Cargo
 
 		If ! Empty( aFuncionarios[ nX ]:aCapacitacao )
 
 			oReport:PrintText( '' )
-			oReport:PrintText( 'Capacitação do Funcionário' )
+			oReport:PrintText( 'Capacitação do Cargo' )
 			oReport:PrintText( '--------------------------' )
 
 			PrintCapac( oSection3, aFuncionarios[ nX ] )
 
 		End If
 
-		// Section Certificação do funcionário
+		// Section Certificação do Cargo
 
 		If ! Empty( aFuncionarios[ nX ]:aCertificacao )
 
 			oReport:PrintText( '' )
-			oReport:PrintText( 'Certificação do Funcionário' )
+			oReport:PrintText( 'Certificação do Cargo' )
 			oReport:PrintText( '---------------------------' )
 
 		PrintCert( oSection4, aFuncionarios[ nX ] )
@@ -1578,7 +1578,7 @@ Static Function PrintReport( oReport, aFuncionarios )
 		If ! Empty( aFuncionarios[ nX ]:aConhecimento )
 
 			oReport:PrintText( '' )
-			oReport:PrintText( 'Conhecimento do Funcionário' )
+			oReport:PrintText( 'Conhecimento do Cargo' )
 			oReport:PrintText( '---------------------------' )
 
 			PrintConh( oSection5, aFuncionarios[ nX ] )
