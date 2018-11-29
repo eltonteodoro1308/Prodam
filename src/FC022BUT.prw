@@ -1,13 +1,13 @@
 #INCLUDE 'TOTVS.CH'
 
 /*/{Protheus.doc} FC022BUT
-Adiciona opÃ§Ã£o em AÃ§Ãµes Relacionadas da rotina de Fluxo de Caixa por Natureza - FINC022
+Adiciona opção em Ações Relacionadas da rotina de Fluxo de Caixa por Natureza - FINC022
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
-@return array, Retorna um array com a(s) nova(s) opÃ§Ã£o(Ãµes) que serÃ¡(Ã£o) adicionada(s) ao botÃ£o AÃ§Ãµes relacionadas
+@return array, Retorna um array com a(s) nova(s) opção(ões) que será(ão) adicionada(s) ao botão Ações relacionadas
 /*/
 User Function FC022BUT()
 	
@@ -16,18 +16,18 @@ User Function FC022BUT()
 	Local bFluxo2Excel := { || Fluxo2Excel( aParam ) }
 	Local bMsAguarde   := { || MsAguarde( bFluxo2Excel, 'Executando ...', 'Mensagem...',.F. ) }
 	
-	aUsButtons := { { '', bMsAguarde, '', 'Portal TransparÃªncia' } }
+	aUsButtons := { { '', bMsAguarde, '', 'Portal Transparência' } }
 	
 Return aUsButtons
 
 /*/{Protheus.doc} Fluxo2Excel
-Gera Planilha Excel com base na tabela temporÃ¡ria descrita no PARAMIXB[2]
-A planilha se baseia quando o PerÃ­odo Ã© DiÃ¡rio ou Mensal, em outro perÃ­odo nÃ£o gera.
-TambÃ©m gera somente quando o modelo for SintÃ©tico.
-Quando o PerÃ­odo for DiÃ¡rio a data inicial e final deve compreender o primeiro e Ãºltimo dia do MÃªs
-Quando o PerÃ­odo for Mensal a data inicial e final deve compreender o primeiro e Ãºltimo dia do Ano
+Gera Planilha Excel com base na tabela temporária descrita no PARAMIXB[2]
+A planilha se baseia quando o Período é Diário ou Mensal, em outro período não gera.
+Também gera somente quando o modelo for Sintético.
+Quando o Período for Diário a data inicial e final deve compreender o primeiro e último dia do Mês
+Quando o Período for Mensal a data inicial e final deve compreender o primeiro e último dia do Ano
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -48,32 +48,37 @@ Static Function Fluxo2Excel( aParam )
 	Local aSldLiquido := {}
 	Local aSldInicial := {}
 	Local aSldFinal   := {}
+	Local nSldInic    := 0
+	Local nLen        := 0
 	Local aColunas    := {}
-	Local aFluxo      := {}
 	Local oNatureza   := Nil
-	Local nTotal      := 0
-	Local nSaldo      := 0
-	Local cNat        := ''
+	Local aNaturezas  := {}
+	Local aAux        := {}
+	Local cCondNat    := ''
+	Local cCodNat     := ''
+	Local cDescNat    := ''
+	Local aSaldos     := Nil
 	Local nX          := 0
+	Local nY          := 0
 	Local lExecuta    := .T.
 	U_Tab2TXT( cAlias )
 	
-	lExecuta := lExecuta .And. lFluxSint // Verifica se Fluxo Ã© SintÃ©tico
-	lExecuta := lExecuta .And. MV_PAR13 == 2 // Verifica se exibe Naturezas SintÃ©ticas
-	lExecuta := cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra PerÃ­odos em Dias ou Meses
+	lExecuta := lExecuta .And. lFluxSint // Verifica se Fluxo é Sintético
+	lExecuta := lExecuta .And. MV_PAR13 == 2 // Verifica se exibe Naturezas Sintéticas
+	lExecuta := cValToChar( MV_PAR05 ) $ '13' // Verifica se Mostra Períodos em Dias ou Meses
 	
 	If MV_PAR05 == 1
 		
-		// Se PerÃ­odo em Dias Verifica se a Data Inicial Ã© o Primeiro dia do MÃªs e
-		// se a Data Final Ã© o Ãšltimo dia do mÃªs
+		// Se Período em Dias Verifica se a Data Inicial é o Primeiro dia do Mês e
+		// se a Data Final é o Último dia do mês
 		
 		lExecuta := lExecuta .And. FirstDate( MV_PAR03 ) == MV_PAR03
 		lExecuta := lExecuta .And. LastDate ( MV_PAR04 ) == MV_PAR04
 		
 	ElseIf MV_PAR05 == 3
 		
-		// Se PerÃ­odo em Meses Verifica se a Data Inicial Ã© o Primeiro dia do Ano e
-		// se a Data Final Ã© o Ãšltimo dia do Ano
+		// Se Período em Meses Verifica se a Data Inicial é o Primeiro dia do Ano e
+		// se a Data Final é o Último dia do Ano
 		
 		lExecuta := lExecuta .And. Day  ( MV_PAR03 ) == 01
 		lExecuta := lExecuta .And. Month( MV_PAR03 ) == 01
@@ -82,19 +87,19 @@ Static Function Fluxo2Excel( aParam )
 		
 	End If
 	
-	If ! lExecuta // Se Alguma condiÃ§Ã£o nÃ£o for atendida exibe mensagem para o usuÃ¡rio e encerra a funÃ§Ã£o
+	If ! lExecuta // Se Alguma condição não for atendida exibe mensagem para o usuário e encerra a função
 		
 		AutoGrLog( 'Permitido Executar Apenas para:' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Fluxo definido como SintÃ©tico' )
+		AutoGrLog( '- Fluxo definido como Sintético' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Definir para nÃ£o exibir as naturezas sintÃ©ticas' )
+		AutoGrLog( '- Definir para não exibir as naturezas sintéticas' )
 		AutoGrLog( '' )
-		AutoGrLog( '- PerÃ­odo em Dias ou Meses.')
+		AutoGrLog( '- Período em Dias ou Meses.')
 		AutoGrLog( '' )
-		AutoGrLog( '- Se perÃ­odo em dias a data inicial deve ser o primeiro dia do mÃªs e a data final o Ãºltimo dia do mÃªs.' )
+		AutoGrLog( '- Se período em dias a data inicial deve ser o primeiro dia do mês e a data final o último dia do mês.' )
 		AutoGrLog( '' )
-		AutoGrLog( '- Se perÃ­odo em meses a data inicial deve ser o primeiro dia do ano e a data final o Ãºltimo dia do ano.' )
+		AutoGrLog( '- Se período em meses a data inicial deve ser o primeiro dia do ano e a data final o último dia do ano.' )
 		
 		MostraErro()
 		
@@ -102,12 +107,12 @@ Static Function Fluxo2Excel( aParam )
 		
 	End If
 	
-	MsProcTxt( 'Montando CabeÃ§alho.' )
+	MsProcTxt( 'Montando Cabeçalho.' )
 	
 	// Populando o Array com os nomes das colunas da planilha a ser gerada
-	// Se o perÃ­odo for DiÃ¡rio considera a coluna de Naturesas e as colunas de saldo realizado de cada dia do mÃªs
-	// Se o perÃ­odo for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao MÃªs corrente (dDataBase) e
-	// as colunas de saldo OrÃ§ado do mÃªs corrente e dos meses posteriores a este.
+	// Se o período for Diário considera a coluna de Naturesas e as colunas de saldo realizado de cada dia do mês
+	// Se o período for Mensal considera a coluna de Naturezas, as colunas de saldo Realizado do meses anteriores ao Mês corrente (dDataBase) e
+	// as colunas de saldo Orçado do mês corrente e dos meses posteriores a este.
 	For nX := 1 To Len( oFluxo:aColumns )
 		
 		cCabec  := AllTrim( Upper( NoAcento( oFluxo:aColumns[ nX ]:cTitle ) ) )
@@ -140,82 +145,44 @@ Static Function Fluxo2Excel( aParam )
 		
 	Next nX
 	
-	// Somente se o perÃ­odo for Mensal inclui coluna de Total
+	// Somente se o período for Mensal inclui coluna de Total
 	If MV_PAR05 = 3
 		
 		aAdd( aCabec, 'TOTAL' )
 		
 	End If
 	
-	// Populando os array correspondentes as linhas de Saldo de Ingressos,
-	// Entradas, Saldo de Desembolso, Linha de SaÃ­da, Saldo LÃ­quido, Saldo Inicial, Saldo Final
+	// Popula Array com a lista de Naturezas que irão compor o Fluxo
 	(cAlias)->( DbGoTop() )
+	
+	nSldInic := (cAlias)->REAL001
 	
 	Do While ! (cAlias)->( Eof() )
 		
-		// Se a linha nÃ£o corresponder ao saldo de uma natureza, substitui o nome da mesma confome abaixo
-		cNat := AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) )
+		MsProcTxt( AllTrim( Upper( NoAcento( (cAlias)->NAT ) ) ) )
 		
-		MsProcTxt( 'Montando Linhas: ' + cNat )
-		ProcessMessage()
+		cCondNat := Posicione( 'SED', 1, xFilial( 'SED' ) + AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 1 ] ), 'ED_COND' )
+		cCodNat   := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 1 ] )
 		
-		If (cAlias)->( AllTrim( SEQ ) $ '/001/002/' .And. Alltrim( CART ) $ 'PR' )
+		// Verificar se a natureza não é uma redutora para adicionar a lista
+		If ( ( (cAlias)->CART == 'R' .And. cCondNat == 'R' ) .Or.;
+				( (cAlias)->CART == 'P' .And. cCondNat == 'D' ) ) .And.;
+				! IsRedutora( cCodNat )
+			
+			cDescNat  := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 2 ] )
 			
 			oNatureza := FC022NAT():New()
 			
-			oNatureza:cCodigo   := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 1 ] )
-			oNatureza:cNatureza := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 2 ] )
+			oNatureza:cCodigo   := cCodNat
+			oNatureza:cNatureza := cDescNat
 			oNatureza:cCondicao := Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_COND' )
 			oNatureza:cTipo     := IF( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_TIPO' )=='1','S','A')
 			oNatureza:cPai      := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_PAI' ) )
+			oNatureza:cRedutora := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_NATMT' ) )//TODO usando campo ED_NATMT mas criar ED_XNATRED
 			oNatureza:cSeq      := (cAlias)->SEQ
 			oNatureza:cCart     := (cAlias)->CART
 			
-			// Fluxo DiÃ¡rio
-			If MV_PAR05 = 1
-				
-				For nX := 1 To Day( LastDate ( MV_PAR04 ) )
-					
-					aAdd( oNatureza:aSaldos, (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) )
-					
-				Next nX
-				
-				// Fluxo Anual
-			ElseIf MV_PAR05 = 3
-				
-				For nX := 1 To 12
-					
-					If nMesBase >= nX // Se MÃªs maior ou igual ao corrente inclui o realizado
-						
-						nSaldo := (cAlias)->&('REAL0' + StrZero( nX, 2 ) )
-						
-						nTotal += nSaldo
-						
-						aAdd( oNatureza:aSaldos, nSaldo )
-						
-						
-					Else // SenÃ£o inclui o ORÃ‡ADO
-						
-						nSaldo := (cAlias)->&('ORC0' + StrZero( nX, 2 ) )
-						
-						nTotal += nSaldo
-						
-						aAdd( oNatureza:aSaldos, nSaldo )
-						
-					End If
-					
-				Next nX
-				
-				aAdd( oNatureza:aSaldos, nTotal )
-				
-				nTotal := 0
-				
-			End If
-			
-			//TODO Ajustar para nÃ£o incluir conta com todos os saldos zerados
-			//TODO Tratar saldo redutor da conta de receita nas despesas 
-			//TODO Tratar saldo redutor da conta de despesas nas receitas
-			aAdd( aFluxo, oNatureza )
+			aAdd( aNaturezas, oNatureza )
 			
 		End If
 		
@@ -223,39 +190,195 @@ Static Function Fluxo2Excel( aParam )
 		
 	End Do
 	
-	//TODO Tratar para popular os arrayÂ´s
-	//TODO aLinEntrada
-	//TODO aLinSaida
-	//TODO aIngresso
-	//TODO aDesembolso
-	//TODO aSldLiquido
-	//TODO aSldInicial
-	//TODO aSldFinal
+	// Percorre lista de naturezas e monta os saldos
+	For nX := 1 To Len( aNaturezas )
+		
+		GetSaldos( aNaturezas[ nX ],cAlias, nMesBase )
+		
+	Next nX
 	
-	// Ajuste de contas de ingresso com desemboldo e de desembolso com ingresso
-	AjIngrDes( @aIngresso, @aLinEntrada, @aDesembolso, @aLinSaida )
+	// Descarta as naturezas que estão zeradas em todos os dias ou meses
+	For nX := 1 To Len( aNaturezas )
+		
+		If ! IsZerada( aNaturezas[ nX ]:aSaldos )
+			
+			aAdd( aAux, aNaturezas[ nX ] )
+			
+		End If
+		
+	Next
 	
-	//Ordena o cÃ³digo das naturezas de ingressos e desembolsos
-	//aSort( aLinEntrada,,, { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
-	//aSort( aLinSaida ,,,  { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) 	} )
+	aSize( aNaturezas, 0 )
+	
+	aNaturezas := aClone( aAux )
+	
+	aSize( aAux, 0 )
+	
+	/*
+	Monta array´s dos Saldos dos:
+	
+	- Ingressos
+	- Desembolsos
+	- Líquido
+	- Inicial
+	- Final
+	
+	*/
+	
+	//Define tamanho dos array´s
+	If MV_PAR05 = 1
+		
+		nLen := Day( LastDate ( MV_PAR04 ) ) + 1
+		
+	ElseIf MV_PAR05 = 3
+		
+		nLen := 14
+		
+	End If
+	
+	aIngresso   := { Array( nLen ) }
+	aDesembolso := { Array( nLen ) }
+	aSldLiquido := { Array( nLen ) }
+	aSldInicial := { Array( nLen ) }
+	aSldFinal   := { Array( nLen ) }
+	
+	// Monta Array´s iniciando valores
+	For nX := 1 To nLen
+		
+		If nX == 1
+			
+			aIngresso  [ 1, nX ] := 'INGRESSOS'
+			aDesembolso[ 1, nX ] := 'DESEMBOLSOS'
+			aSldLiquido[ 1, nX ] := 'LÍQUIDO'
+			aSldInicial[ 1, nX ] := 'SALDO INICIAL'
+			aSldFinal  [ 1, nX ] := 'SALDO FINAL'
+			
+		Else
+			
+			aIngresso  [ 1, nX ] := 0
+			aDesembolso[ 1, nX ] := 0
+			aSldLiquido[ 1, nX ] := 0
+			aSldInicial[ 1, nX ] := 0
+			aSldFinal  [ 1, nX ] := 0
+			
+		End If
+		
+	Next nX
+	
+	// Popula array de ingresso e de desembolso
+	For nX := 1 To Len( aNaturezas )
+		
+		If aNaturezas[ nX ]:cCondicao == 'R'
+			
+			For nY := 2 To Len( aIngresso[ 1 ] )
+				
+				aIngresso[ 1, nY ] += aNaturezas[ nX ]:aSaldos[ nY - 1 ]
+				
+			Next nY
+			
+		ElseIf aNaturezas[ nX ]:cCondicao == 'D'
+			
+			For nY := 2 To Len( aDesembolso[ 1 ] )
+				
+				aDesembolso[ 1, nY ] += aNaturezas[ nX ]:aSaldos[ nY - 1 ]
+				
+			Next nY
+			
+		End If
+		
+	Next nX
+	
+	// Popula 	array de Saldo Líquido
+	For nX := 2 To Len( aSldLiquido[ 1 ] )
+		
+		aSldLiquido[ 1, nX ] += aIngresso[ 1, nX ]
+		
+	Next nX
+	
+	For nX := 2 To Len( aSldLiquido[ 1 ] )
+		
+		aSldLiquido[ 1, nX ] -= aDesembolso[ 1, nX ]
+		
+	Next nX
+	
+	// Popula Array Saldos Inicial e Final
+	For nX := 2 To If( MV_PAR05 = 3, nLen - 1, nLen )
+		
+		If nX == 2
+			
+			aSldInicial[ 1, nX] := nSldInic
+			
+		Else
+			
+			aSldInicial[ 1, nX] := aSldFinal  [ 1, nX - 1 ]
+			
+		End If
+		
+		aSldFinal  [ 1, nX] := aSldInicial[ 1, nX] + aSldLiquido[ 1, nX ]
+		
+	Next nX
+	
+	// Popula aNaturezas com as contas sintéticas
+	For nX := 1 To Len( aNaturezas )
+		
+		AddSintet( @aAux, aNaturezas[ nX ] )
+		
+	Next nX
+	
+	For nX := 1 To Len( aAux )
+		
+		aAdd( aNaturezas, aAux[ nX ] )
+		
+	Next nX
+	
+	aSize( aAux, 0 )
+	
+	// Populando array com saldos das naturezas de ingresso e desembolso
+	For nX := 1 To Len( aNaturezas )
+		
+		aAdd( aAux, aNaturezas[ nX ]:cCodigo + ' - ' + aNaturezas[ nX ]:cNatureza)
+		
+		For nY := 1 To Len( aNaturezas[ nX ]:aSaldos )
+			
+			aAdd( aAux, aNaturezas[ nX ]:aSaldos[ nY ] )
+			
+		Next nY
+		
+		If aNaturezas[ nX ]:cCondicao == 'R'
+			
+			aAdd( aLinEntrada, aClone( aAux ) )
+			
+		ElseIf aNaturezas[ nX ]:cCondicao == 'D'
+			
+			aAdd( aLinSaida, aClone( aAux ) )
+			
+		End If
+		
+		aSize( aAux, 0 )
+		
+	Next nX
+	
+	//Ordena o código das naturezas de ingressos e desembolsos
+	aSort( aLinEntrada,,, { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) } )
+	aSort( aLinSaida ,,,  { | X, Y | Transforma( X[1] ) < Transforma( Y[1] ) } )
 	
 	RestArea( aAreaAlias )
 	RestArea( aArea )
 	
-	// Executa funÃ§Ã£o para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
-	//ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
+	// Executa função para gerar planilha do Excel com base nos dados dos arrays correspondentes a cada linha
+	ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida, aSldLiquido, aSldInicial, aSldFinal )
 	
 Return
 
 /*/{Protheus.doc} MesNum
-FunÃ§Ã£o que localiza no nome da coluna o mÃªs correspondente e retorna o nÃºmero deste mÃªs
+Função que localiza no nome da coluna o mês correspondente e retorna o número deste mês
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
 @param cColName, characters, Nome da Coluna
-@return return, NÃºmero correspondente ao mÃªs localizado no nome da coluna
+@return return, Número correspondente ao mês localizado no nome da coluna
 /*/
 Static Function MesNum( cColName )
 	
@@ -290,180 +413,10 @@ Static Function MesNum( cColName )
 	
 Return nRet
 
-/*/{Protheus.doc} IsZerada
-Verifica se o array de uma linha da planilha a ser gerada tem todas as colunas de valores zerada
-@project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
-@version P12
-@author TOTVS
-@since 30/10/2018
-@param aColunas, array, Array com os valores das colunas da linha a ser verificada
-@Return logic, Retorno lÃ³gico indicando se as colunas de valores estÃ£o zeradas
-/*/
-Static Function IsZerada( aColunas )
-	
-	Local lRet := .T.
-	Local nX   := 0
-	
-	For nX := 1 To Len( aColunas )
-		
-		If aColunas[ nX ] # 0
-			
-			lRet := .F.
-			
-			EXIT
-			
-		End If
-		
-	Next nX
-	
-Return lRet
-
-
-/*/{Protheus.doc} AjIngrDes
-Executa o ajuste dos arrays recebidos por referÃªncia de Entradas e SaÃ­das e seus saldos de ingresso e desembolso correspondentes,
-visto que naturezas de Receita recebem lanÃ§amentos de Despesas e naturezas de Despesas recebem lanÃ§amentos
-de Receita, assim verifica-se a condiÃ§Ã£o da natureza (ED_COND) sendo Receita soma-se as entradas e subtrai-se
-as SaÃ­das e sendo Despesas soma-se as SaÃ­das e subtrai-se as entradas, faz tambÃ©m os ajustes na linhas de
-Total de ingressos e desembolsos.
-@project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
-@version P12
-@author TOTVS
-@since 30/10/2018
-@param aIngresso, array, Saldos totais de Ingressos da Naturezas
-@param aLinEntrada, array, Saldos de Entradas na Natureza
-@param aDesembolso, array, Saldos totais de Desembolso da Naturezas
-@param aLinSaida, array, Saldos de SaÃ­das na Natureza
-/*/
-Static Function AjIngrDes( aIngresso, aLinEntrada, aDesembolso, aLinSaida )
-	
-	Local uLinEntrada := aClone( aLinEntrada )
-	Local uLinSaida   := aClone( aLinSaida   )
-	Local nX          := 0
-	Local nY          := 0
-	Local aArea       := SED->( GetArea() )
-	Local cCodNat     := ''
-	Local nPos        := 0
-	
-	aSize( aLinEntrada, 0 )
-	aSize( aLinSaida  , 0 )
-	
-	// Ajusta linhs de entradas
-	For nX := 1 To Len( uLinEntrada )
-		
-		cCodNat := AllTrim( StrTokArr2( uLinEntrada[ nX,1 ], '-', .T. )[1] )
-		
-		// Verifica se Natureza Ã© um Receita
-		If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_COND' ) == 'R'
-			
-			// Sendo Receita Inclui na lista de entradas
-			aAdd( aLinEntrada, uLinEntrada[ nX ]  )
-			
-		Else
-			
-			// Sendo Despesa Inclui na lista de SaÃ­das
-			aAdd( aLinSaida, uLinEntrada[ nX ]  )
-			
-			// Exclui os valores desta linha dos saldos de Ingresso e Desembolso se a Natureza
-			// for sintÃ©tica de nÃ­vel 1 ou seja ED_TIPO == 1-SintÃ©tico e ED_PAI  == ''
-			If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) == '1' .And.;
-					Empty( Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) )
-				For nY := 2 To Len( uLinEntrada[ nX ] )
-					
-					aIngresso  [ 1, nY ] := aIngresso  [ 1, nY ] - uLinEntrada[ nX, nY ]
-					aDesembolso[ 1, nY ] := aDesembolso[ 1, nY ] - uLinEntrada[ nX, nY ]
-					
-				Next nY
-				
-			End If
-			
-		End If
-		
-	Next nX
-	
-	
-	// Ajusta linhs de saÃ­das
-	For nX := 1 To Len( uLinSaida )
-		
-		cCodNat := AllTrim( StrTokArr2( uLinSaida[ nX,1 ], '-', .T. )[1] )
-		
-		// Verifica se Natureza Ã© um Despesa
-		If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_COND' ) == 'D'
-			
-			// Sendo Despesa Inclui na lista de SaÃ­das
-			
-			// Verifica posiÃ§Ã£o da natureza na lista de despesas
-			nPos := aScan( aLinSaida, { |X| X[1] == uLinSaida[ nX,1 ] } )
-			
-			// Verifica se a mesma jÃ¡ existe na lista
-			If nPos == 0
-				
-				// Se nÃ£o existir inclui
-				aAdd( aLinSaida, uLinSaida[ nX ]  )
-				
-			Else
-				
-				// Se Existir soma valores na posiÃ§Ã£o
-				For nY := 2 To Len( aLinSaida[ nPos ] )
-					
-					aLinSaida[ nPos, nY ] := aLinSaida[ nPos, nY ] + uLinSaida[ nX, nY ]
-					
-				Next nY
-				
-				
-			End If
-			
-		Else
-			
-			// Sendo Receita Inclui na lista de entradas
-			
-			// Verifica posiÃ§Ã£o da natureza na lista de receitas
-			nPos := aScan( aLinEntrada, { |X| X[1] == uLinSaida[ nX,1 ] } )
-			
-			// Verifica se a mesma jÃ¡ existe na lista
-			If nPos == 0
-				
-				// Se nÃ£o existir inclui
-				aAdd( aLinEntrada, uLinSaida[ nX ]  )
-				
-			Else
-				
-				// Se Existir soma valores na posiÃ§Ã£o
-				For nY := 2 To Len( aLinEntrada[ nPos ] )
-					
-					aLinEntrada[ nPos, nY ] := aLinEntrada[ nPos, nY ] - uLinSaida[ nX, nY ]
-					
-				Next nY
-				
-				
-			End If
-			
-			// Exclui os valores desta linha dos saldos de Ingresso e Desembolso se a Natureza
-			// for sintÃ©tica de nÃ­vel 1 ou seja ED_TIPO == 1-SintÃ©tico e ED_PAI  == ''
-			If Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) == '1' .And.;
-					Empty( Posicione( 'SED', 1, xFilial( 'SED' ) + cCodNat , 'ED_TIPO' ) )
-				
-				For nY := 2 To Len( uLinSaida[ nX ] )
-					
-					aIngresso  [ 1, nY ] := aIngresso  [ 1, nY ] - uLinSaida[ nX, nY ]
-					aDesembolso[ 1, nY ] := aDesembolso[ 1, nY ] - uLinSaida[ nX, nY ]
-					
-				Next nY
-				
-			End If
-			
-		End If
-		
-	Next nX
-	
-	SED->( RestArea( aArea ) )
-	
-Return
 /*/{Protheus.doc} ToExcel
 Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de Caixa
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
@@ -471,8 +424,8 @@ Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de
 @param aIngresso, array, Saldos totais de Ingressos da Naturezas
 @param aLinEntrada, array, Saldos de Entradas na Natureza
 @param aDesembolso, array, Saldos totais de Desembolso da Naturezas
-@param aLinSaida, array, Saldos de SaÃ­das na Natureza
-@param aSldLiquido, array, Saldos totais LÃ­quido da Naturezas
+@param aLinSaida, array, Saldos de Saídas na Natureza
+@param aSldLiquido, array, Saldos totais Líquido da Naturezas
 @param aSldInicial, array, Saldos totais de Iniciais da Naturezas
 @param aSldFinal, array, Saldos totais de Finais da Naturezas
 /*/
@@ -502,10 +455,10 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Next nX
 	
 	aAdd( aParam, { 1, 'Local e Nome do Arquivo'  , Space(255), '@', cValid ,, '.T.', 90, .F. } )
-	aAdd( aParam, { 1, 'NÃ­vel de Ingressos'       , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
-	aAdd( aParam, { 1, 'NÃ­vel de Desembolsos'     , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Ingressos'       , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Desembolsos'     , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
 	
-	// Verifica a quantidade nÃ­veis do Fluxo para ingressos e desembolsos
+	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
 	If ! ParamBox( aParam, '', @aRet,,,,,,, 'Fluxo2Excel', .T., .T. )
 		
 		aRet := { GetTempPath() + GetNextAlias() + '.xml', 999, 999 }
@@ -636,21 +589,21 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	oFWMSExcel:Activate()
 	oFWMSExcel:GetXMLFile( cArquivo )
 	
-	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'AtenÃ§Ã£o !!!' )
+	ApMsgInfo( 'O arquivo ' + cArquivo + ' foi gerado com sucesso.', 'Atenção !!!' )
 	
 	SED->( RestArea( aArea ) )
 	
 Return
 
 /*/{Protheus.doc} Transforma
-Transforma o cÃ³digo da natureza aplicando PadL( cVal, 3, '0' ) a cada nÃ­vel, permitindo facilitar a ordenÃ§Ã£o do cÃ³digo das naturezas
+Transforma o código da natureza aplicando PadL( cVal, 3, '0' ) a cada nível, permitindo facilitar a ordenção do código das naturezas
 @project MAN0000038865_EF_002
-@type function Rotina EspecÃ­fica
+@type function Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
-@param cItem, character, CÃ³digo da Natureza
-@return character, CÃ³digo da Natureza ajustado para facilitar a ordenÃ§Ã£o
+@param cItem, character, Código da Natureza
+@return character, Código da Natureza ajustado para facilitar a ordenção
 /*/
 Static Function Transforma( cItem )
 	
@@ -670,60 +623,6 @@ Static Function Transforma( cItem )
 	
 Return cRet
 
-User Function Tab2TXT( cAlias )
-	
-	Local cTxt := ''
-	Local nX   := 0
-	
-	( cAlias )->( DbGoTop() )
-	
-	For nX := 1 To ( cAlias )->( FCount() )
-		
-		cTxt += FieldName( nX )
-		
-		If nX # ( cAlias )->( FCount() )
-			
-			cTxt += ';'
-			
-		End If
-		
-	Next nX
-	
-	cTxt += Chr( 13 ) + Chr( 10 )
-	
-	Do While ( cAlias )->( ! Eof() )
-		
-		For nX := 1 To ( cAlias )->( FCount() )
-			
-			If ValType( ( cAlias )->( FieldGet( nX ) ) ) == 'N'
-				
-				cTxt += StrTran(cValToChar( ( cAlias )->( FieldGet( nX ) ) ), '.', ',' )
-				
-			Else
-				
-				cTxt += ( cAlias )->( FieldGet( nX ) )
-				
-			End If
-			
-			If nX # ( cAlias )->( FCount() )
-				
-				cTxt += ';'
-				
-			End If
-			
-		Next nX
-		
-		( cAlias )->( DbSkip() )
-		
-		cTxt += Chr( 13 ) + Chr( 10 )
-		
-	End Do
-	
-	MemoWrite( 'c:/temp/' + FWTimeStamp() + '.csv', cTxt )
-	
-Return
-
-
 Class FC022NAT
 	
 	Data cCodigo
@@ -731,6 +630,7 @@ Class FC022NAT
 	Data cCondicao // Receita // Despesa
 	Data cTipo // Sintetico // Analitico
 	Data cPai
+	Data cRedutora
 	Data cSeq // 0 // 1 // 2 // 900 // 999
 	Data cCart // P // R // Z
 	Data aSaldos
@@ -741,13 +641,205 @@ End Class
 
 Method New() Class FC022NAT
 	
+	Local nX := 0
+	
 	::cCodigo   := ''
 	::cNatureza := ''
 	::cCondicao := ''
 	::cTipo     := ''
 	::cPai      := ''
+	::cRedutora := ''
 	::cSeq      := ''
 	::cCart     := ''
-	::aSaldos   := {}
+	
+	If MV_PAR05 = 1
+		
+		::aSaldos   := Array( Day( LastDate ( MV_PAR04 ) ) )
+		
+	ElseIf MV_PAR05 = 3
+		
+		::aSaldos   := Array( 13 )
+		
+	End If
+	
+	For nX := 1 To Len( ::aSaldos )
+		
+		::aSaldos[ nX ] := 0
+		
+	Next nX
 	
 Return Self
+
+
+Static Function IsRedutora( cCodNat )
+	
+	Local cQuery := ''
+	Local aArea  := GetArea()
+	Local lRet   := .F.
+	Local cAlias := ''
+	
+	cQuery += "SELECT COUNT( * ) COUNT FROM " + RetSQLName ( 'SED' ) + " "
+	cQuery += "WHERE D_E_L_E_T_ = '' AND ED_NATMT = '" + cCodNat + "'" //TODO usando campo ED_NATMT mas criar ED_XNATRED
+	
+	cAlias := MPSysOpenQuery( cQuery )
+	
+	lRet := (cAlias)->COUNT > 0
+	
+	
+Return lRet
+
+Static Function GetSaldos( oNatureza, cAlias, nMesBase )
+	
+	Local nX      := 0
+	Local nTotal  := 0
+	Local nSaldo  := 0
+	Local cCodNat := ''
+	
+	(cAlias)->( DbGoTop() )
+	
+	Do While ! (cAlias)->( Eof() )
+		
+		cCodNat := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 1 ] )
+		
+		// Natureza conforme a sua condição
+		If ( oNatureza:cCodigo == cCodNat .Or. oNatureza:cRedutora == cCodNat) .And.(;
+				( (cAlias)->CART == 'R' .And. oNatureza:cCondicao == 'R' ) .Or.;
+				( (cAlias)->CART == 'P' .And. oNatureza:cCondicao == 'D' ) )
+			
+			AddSaldo( oNatureza, cAlias, nMesBase, 1 )
+			
+		End If
+		
+		// Natureza contrária a sua condição
+		If ( oNatureza:cCodigo == cCodNat .Or. oNatureza:cRedutora == cCodNat) .And.(;
+				( (cAlias)->CART == 'R' .And. oNatureza:cCondicao == 'D' ) .Or.;
+				( (cAlias)->CART == 'P' .And. oNatureza:cCondicao == 'R' ) )
+			
+			AddSaldo( oNatureza, cAlias, nMesBase, -1 )
+			
+		End If
+		
+		(cAlias)->( DbSkip() )
+		
+	End Do
+	
+Return
+
+
+Static Function AddSaldo( oNatureza, cAlias, nMesBase, nSinal )
+	
+	Local nX     := 0
+	Local nTotal := 0
+	Local nSaldo := 0
+	
+	For nX := 1 To Len( oNatureza:aSaldos )
+		
+		If MV_PAR05 = 1
+			
+			oNatureza:aSaldos[ nX ] := (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) * nSinal
+			
+		ElseIf MV_PAR05 = 3
+			
+			If nMesBase >= nX // Se Mês maior ou igual ao corrente inclui o ORÇADO
+				
+				oNatureza:aSaldos[ nX ] := (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) * nSinal
+				
+			Else // Senão inclui o REALIZADO
+				
+				// Trata inclusão de colunade total
+				If nX # 13
+					
+					nSaldo := (cAlias)->&('ORC0' + StrZero( nX, 2 ) ) * nSinal
+					
+					nTotal += nSaldo
+					
+					oNatureza:aSaldos[ nX ] := nSaldo
+					
+				Else
+					
+					oNatureza:aSaldos[ nX ] := nTotal
+					
+				End If
+				
+			End If
+			
+		End If
+		
+	Next nX
+	
+Return
+
+/*/{Protheus.doc} IsZerada
+Verifica se o array de uma linha da planilha a ser gerada tem todas as colunas de valores zerada
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 30/10/2018
+@param aColunas, array, Array com os valores das colunas da linha a ser verificada
+@Return logic, Retorno lógico indicando se as colunas de valores estão zeradas
+/*/
+Static Function IsZerada( aColunas )
+	
+	Local lRet := .T.
+	Local nX   := 0
+	
+	For nX := 1 To Len( aColunas )
+		
+		If aColunas[ nX ] # 0
+			
+			lRet := .F.
+			
+			EXIT
+			
+		End If
+		
+	Next nX
+	
+Return lRet
+
+
+Static Function AddSintet( aAux, oNatureza )
+	
+	Local nPos  := aScan( aAux, { |X| X:cCodigo == oNatureza:cPai } )
+	Local oAux  := Nil
+	Local aArea := GetArea()
+	Local nX    := 0
+	
+	If ! Empty( oNatureza:cPai )
+		
+		If nPos == 0
+			
+			oAux := FC022NAT():New()
+			
+			oAux:cCodigo   := oNatureza:cPai
+			oAux:cNatureza := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cPai, 'ED_DESCRIC' ) )
+			oAux:cCondicao := oNatureza:cCondicao
+			oAux:cTipo     := 'S'
+			oAux:cPai      := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cPai, 'ED_PAI' ) )
+			oAux:cRedutora := ''
+			oAux:cSeq      := oNatureza:cSeq
+			oAux:cCart     := oNatureza:cCart
+			oAux:aSaldos    := aClone( oNatureza:aSaldos )
+			
+			aAdd( aAux, oAux )
+			
+		Else
+			
+			oAux := aAux[ nPos ]
+			
+			For nX := 1 To Len( oAux:aSaldos )
+				
+				oAux:aSaldos[ nX ] += oNatureza:aSaldos[ nX ]
+				
+			Next nX
+			
+		End If
+		
+		AddSintet( @aAux, oAux )
+		
+	End If
+	
+	RestArea( aArea )
+	
+Return
