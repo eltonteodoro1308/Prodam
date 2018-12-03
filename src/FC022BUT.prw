@@ -20,7 +20,7 @@ User Function FC022BUT()
 	
 Return aUsButtons
 
-/*/{Protheus.doc} Fluxo2Excel
+/*/{Protheus.doc} Fluxo2Exceladmin
 Gera Planilha Excel com base na tabela temporária descrita no PARAMIXB[2]
 A planilha se baseia quando o Período é Diário ou Mensal, em outro período não gera.
 Também gera somente quando o modelo for Sintético.
@@ -61,7 +61,13 @@ Static Function Fluxo2Excel( aParam )
 	Local nX          := 0
 	Local nY          := 0
 	Local lExecuta    := .T.
-	U_Tab2TXT( cAlias )
+
+	//TODO
+	/*
+	- Documentar corretamente o fonte
+	- Verificar variáveis que não foram utilizadas
+	- Comentar partes relevantes do fonte
+	*/
 	
 	lExecuta := lExecuta .And. lFluxSint // Verifica se Fluxo é Sintético
 	lExecuta := lExecuta .And. MV_PAR13 == 2 // Verifica se exibe Naturezas Sintéticas
@@ -125,7 +131,7 @@ Static Function Fluxo2Excel( aParam )
 		ElseIf MV_PAR05 = 1 .And. 'REALIZADO' $ cCabec .And. ! 'TOTAL' $ cCabec .And. ! '01/' + StrZero( Month( MV_PAR03 ) + 1, 2 ) $ cCabec
 			
 			cCabec := StrTran( cCabec, 'REALIZADO', '' )
-			cCabec := AllTrim( StrTokArr2(cCabec,'/', .T.)[1] )
+			cCabec := AllTrim( cCabec ) + '/' + cValToChar( Year( MV_PAR03 ) )
 			
 			aAdd( aCabec, cCabec )
 			
@@ -145,12 +151,9 @@ Static Function Fluxo2Excel( aParam )
 		
 	Next nX
 	
-	// Somente se o período for Mensal inclui coluna de Total
-	If MV_PAR05 = 3
-		
-		aAdd( aCabec, 'TOTAL' )
-		
-	End If
+	aAdd( aCabec, 'TOTAL' )
+	
+	nLen := Len( aCabec )
 	
 	// Popula Array com a lista de Naturezas que irão compor o Fluxo
 	(cAlias)->( DbGoTop() )
@@ -169,15 +172,14 @@ Static Function Fluxo2Excel( aParam )
 				( (cAlias)->CART == 'P' .And. cCondNat == 'D' ) ) .And.;
 				! IsRedutora( cCodNat )
 			
-			cDescNat  := AllTrim( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 2 ] )
+			cDescNat  := AllTrim( NoAcento( StrTokArr2( (cAlias)->NAT, '-', .T.  )[ 2 ] ) )
 			
-			oNatureza := FC022NAT():New()
+			oNatureza := FC022NAT():New( nLen )
 			
 			oNatureza:cCodigo   := cCodNat
 			oNatureza:cNatureza := cDescNat
 			oNatureza:cCondicao := Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_COND' )
 			oNatureza:cTipo     := IF( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_TIPO' )=='1','S','A')
-			oNatureza:cPai      := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_PAI' ) )
 			oNatureza:cRedutora := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cCodigo,'ED_NATMT' ) )//TODO usando campo ED_NATMT mas criar ED_XNATRED
 			oNatureza:cSeq      := (cAlias)->SEQ
 			oNatureza:cCart     := (cAlias)->CART
@@ -224,17 +226,6 @@ Static Function Fluxo2Excel( aParam )
 	- Final
 	
 	*/
-	
-	//Define tamanho dos array´s
-	If MV_PAR05 = 1
-		
-		nLen := Day( LastDate ( MV_PAR04 ) ) + 1
-		
-	ElseIf MV_PAR05 = 3
-		
-		nLen := 14
-		
-	End If
 	
 	aIngresso   := { Array( nLen ) }
 	aDesembolso := { Array( nLen ) }
@@ -302,7 +293,7 @@ Static Function Fluxo2Excel( aParam )
 	Next nX
 	
 	// Popula Array Saldos Inicial e Final
-	For nX := 2 To If( MV_PAR05 = 3, nLen - 1, nLen )
+	For nX := 2 To nLen - 1 //If( MV_PAR05 = 3, nLen - 1, nLen )
 		
 		If nX == 2
 			
@@ -318,10 +309,16 @@ Static Function Fluxo2Excel( aParam )
 		
 	Next nX
 	
+	// Popula a posição total do saldo inicial com o próprio saldo inicial
+	aSldInicial[ 1, Len( aSldInicial[ 1 ] ) ] := nSldInic
+	
+	// Popula a posição total do saldo Final com o proprio saldo final do último dia/mês do período
+	aSldFinal[ 1, Len( aSldFinal[ 1 ] ) ]   := aSldFinal[ 1, Len( aSldFinal[ 1 ] ) - 1 ]
+	
 	// Popula aNaturezas com as contas sintéticas
 	For nX := 1 To Len( aNaturezas )
 		
-		AddSintet( @aAux, aNaturezas[ nX ] )
+		AddSintet( @aAux, aNaturezas[ nX ], nLen )
 		
 	Next nX
 	
@@ -445,7 +442,8 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local aArea      := SED->( GetArea() )
 	Local aRet       := {}
 	Local aParam     := {}
-	Local cValid     := 'Eval( { || MV_PAR01 := cGetFile( ,,, SubStr( MV_PAR01, 1, Rat( "\", MV_PAR01 ) - 1 ),,, .F. ), .T. } )'
+	Local cMvPar     := 'MV_PAR01 := cGetFile( ,,, SubStr( MV_PAR01, 1, Rat( "\", MV_PAR01 ) - 1 ),,, .F. )'
+	Local cValid     := 'Eval( { || If( ApMsgYesNo( "Utiliza o Mesmo Caminho ?" ), MV_PAR01 := MV_PAR01, ' + cMvPar + '), .T. } )'
 	Local aBkParam   := Array( 60 )
 	
 	For nX := 1 To Len( aBkParam )
@@ -454,9 +452,9 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 		
 	Next nX
 	
-	aAdd( aParam, { 1, 'Local e Nome do Arquivo'  , Space(255), '@', cValid ,, '.T.', 90, .F. } )
-	aAdd( aParam, { 1, 'Nível de Ingressos'       , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
-	aAdd( aParam, { 1, 'Nível de Desembolsos'     , 000       , '@', '.T.'  ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Local e Nome do Arquivo'  , Space(255), '@!'    , cValid ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Ingressos'       , 000       , '@E 999', '.T.'  ,, '.T.', 90, .F. } )
+	aAdd( aParam, { 1, 'Nível de Desembolsos'     , 000       , '@E 999', '.T.'  ,, '.T.', 90, .F. } )
 	
 	// Verifica a quantidade níveis do Fluxo para ingressos e desembolsos
 	If ! ParamBox( aParam, '', @aRet,,,,,,, 'Fluxo2Excel', .T., .T. )
@@ -629,7 +627,6 @@ Class FC022NAT
 	Data cNatureza
 	Data cCondicao // Receita // Despesa
 	Data cTipo // Sintetico // Analitico
-	Data cPai
 	Data cRedutora
 	Data cSeq // 0 // 1 // 2 // 900 // 999
 	Data cCart // P // R // Z
@@ -639,7 +636,7 @@ Class FC022NAT
 	
 End Class
 
-Method New() Class FC022NAT
+Method New( nLen ) Class FC022NAT
 	
 	Local nX := 0
 	
@@ -647,20 +644,10 @@ Method New() Class FC022NAT
 	::cNatureza := ''
 	::cCondicao := ''
 	::cTipo     := ''
-	::cPai      := ''
 	::cRedutora := ''
 	::cSeq      := ''
 	::cCart     := ''
-	
-	If MV_PAR05 = 1
-		
-		::aSaldos   := Array( Day( LastDate ( MV_PAR04 ) ) )
-		
-	ElseIf MV_PAR05 = 3
-		
-		::aSaldos   := Array( 13 )
-		
-	End If
+	::aSaldos   := Array( nLen - 1 )
 	
 	For nX := 1 To Len( ::aSaldos )
 		
@@ -690,9 +677,6 @@ Return lRet
 
 Static Function GetSaldos( oNatureza, cAlias, nMesBase )
 	
-	Local nX      := 0
-	Local nTotal  := 0
-	Local nSaldo  := 0
 	Local cCodNat := ''
 	
 	(cAlias)->( DbGoTop() )
@@ -731,39 +715,88 @@ Static Function AddSaldo( oNatureza, cAlias, nMesBase, nSinal )
 	Local nX     := 0
 	Local nTotal := 0
 	Local nSaldo := 0
+	Local aTpSld := { 'REAL0', 'ORC0' }
+	Local nTpSld := 1
 	
 	For nX := 1 To Len( oNatureza:aSaldos )
 		
-		If MV_PAR05 = 1
+		If MV_PAR05 = 1 // Fluxo Diário
 			
-			oNatureza:aSaldos[ nX ] := (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) * nSinal
+			nTpSld := 1
 			
-		ElseIf MV_PAR05 = 3
+		ElseIf MV_PAR05 = 3 // Fluxo Mensal
 			
-			If nMesBase >= nX // Se Mês maior ou igual ao corrente inclui o ORÇADO
+			If nMesBase >= nX //Verifica tipo de saldo conforme mês
 				
-				oNatureza:aSaldos[ nX ] := (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) * nSinal
+				nTpSld := 1
 				
-			Else // Senão inclui o REALIZADO
+			Else
 				
-				// Trata inclusão de colunade total
-				If nX # 13
-					
-					nSaldo := (cAlias)->&('ORC0' + StrZero( nX, 2 ) ) * nSinal
-					
-					nTotal += nSaldo
-					
-					oNatureza:aSaldos[ nX ] := nSaldo
-					
-				Else
-					
-					oNatureza:aSaldos[ nX ] := nTotal
-					
-				End If
+				nTpSld := 2
 				
 			End If
 			
 		End If
+		
+		If nX < Len( oNatureza:aSaldos )
+			
+			// Atribui saldo ao array conforme mês e tipo de saldo e acumula o saldo total da natureza
+			nSaldo := (cAlias)->&( aTpSld[ nTpSld ] + StrZero( nX, 2 ) ) * nSinal
+			
+			nTotal += nSaldo
+			
+			oNatureza:aSaldos[ nX ] := nSaldo
+			
+		End If
+		
+		If nX == Len( oNatureza:aSaldos )
+			
+			// Trata inclusão de coluna de total
+			oNatureza:aSaldos[ nX ] := nTotal
+			
+		End If
+		
+		// Popula array de saldos com valores realizados
+		
+		// Se for fluxo do tipo Anual popula array de saldos com  valores realizados
+		// para meses anteriores ao corrente e orçado/previsto para o mês corrente e os
+		// subsequentes
+		
+		//		If MV_PAR05 = 1 // Fluxo Diário
+		//
+		//			nSaldo := oNatureza:aSaldos[ nX ] := (cAlias)->&('REAL0' + StrZero( nX, 2 ) ) * nSinal
+		//
+		//			nTotal += nSaldo
+		//
+		//			oNatureza:aSaldos[ nX ] := nSaldo
+		//
+		//		ElseIf MV_PAR05 = 3 // Fluxo Mensal
+		//
+		//			If nMesBase >= nX //Verifica tipo de saldo conforme mês
+		//
+		//				nTpSld := 1
+		//
+		//			Else
+		//
+		//				nTpSld := 2
+		//
+		//			End If
+		//
+		//			// Atribui saldo ao array conforme mês e tipo de saldo e acumula o saldo total da natureza
+		//			nSaldo := (cAlias)->&( aTpSld[ nTpSld ] + StrZero( nX, 2 ) ) * nSinal
+		//
+		//			nTotal += nSaldo
+		//
+		//			oNatureza:aSaldos[ nX ] := nSaldo
+		//
+		//			// Trata inclusão de coluna de total
+		//			If nX == Len( oNatureza:aSaldos )
+		//
+		//				oNatureza:aSaldos[ nX ] := nTotal
+		//
+		//			End If
+		//
+		//		End If
 		
 	Next nX
 	
@@ -799,24 +832,53 @@ Static Function IsZerada( aColunas )
 Return lRet
 
 
-Static Function AddSintet( aAux, oNatureza )
+Static Function AddSintet( aAux, oNatureza, nLen )
 	
-	Local nPos  := aScan( aAux, { |X| X:cCodigo == oNatureza:cPai } )
-	Local oAux  := Nil
-	Local aArea := GetArea()
-	Local nX    := 0
+	Local nStart     := 1
+	Local nPos       := 1
+	Local aPos       := {}
+	Local aSintetica := {}
+	Local oAux       := Nil
+	Local aArea      := GetArea()
+	Local nX         := 0
+	Local nY         := 0
+	Local cNatureza  := oNatureza:cCodigo
 	
-	If ! Empty( oNatureza:cPai )
+	// Verifica a posição dos pontos separadores de níveis
+	Do While nPos # 0
+		
+		nPos := At( '.', cNatureza, nStart )
+		
+		nStart := nPos + 1
+		
+		If nPos # 0
+			
+			aAdd( aPos, nPos )
+			
+		End If
+		
+	End Do
+	
+	// Com as posições dos pontos separadores de níveis verifica quais naturezas sintéticas serão populadas com o saldo natureza
+	For nX := 1 To Len( aPos )
+		
+		aAdd( aSintetica, SubStr( cNatureza, 1, aPos[ nX ] - 1 ) )
+		
+	Next nX
+	
+	// Verifica se a natureza já existe na lista, se não existe inclui na lista com saldo, se não apenas soma saldo da natureza
+	For nX := 1 To Len( aSintetica )
+		
+		nPos := aScan( aAux, { |X| X:cCodigo == aSintetica[ nX ] } )
 		
 		If nPos == 0
 			
-			oAux := FC022NAT():New()
+			oAux := FC022NAT():New( nLen )
 			
-			oAux:cCodigo   := oNatureza:cPai
-			oAux:cNatureza := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cPai, 'ED_DESCRIC' ) )
+			oAux:cCodigo   := aSintetica[ nX ]
+			oAux:cNatureza := AllTrim( NoAcento( Posicione( 'SED', 1, xFilial( 'SED' ) + oAux:cCodigo, 'ED_DESCRIC' ) ) )
 			oAux:cCondicao := oNatureza:cCondicao
 			oAux:cTipo     := 'S'
-			oAux:cPai      := AllTrim( Posicione( 'SED', 1, xFilial( 'SED' ) + oNatureza:cPai, 'ED_PAI' ) )
 			oAux:cRedutora := ''
 			oAux:cSeq      := oNatureza:cSeq
 			oAux:cCart     := oNatureza:cCart
@@ -828,17 +890,15 @@ Static Function AddSintet( aAux, oNatureza )
 			
 			oAux := aAux[ nPos ]
 			
-			For nX := 1 To Len( oAux:aSaldos )
+			For nY := 1 To Len( oAux:aSaldos )
 				
-				oAux:aSaldos[ nX ] += oNatureza:aSaldos[ nX ]
+				oAux:aSaldos[ nY ] += oNatureza:aSaldos[ nY ]
 				
-			Next nX
+			Next nY
 			
 		End If
 		
-		AddSintet( @aAux, oAux )
-		
-	End If
+	Next nX
 	
 	RestArea( aArea )
 	
