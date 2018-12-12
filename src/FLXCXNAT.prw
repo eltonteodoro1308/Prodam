@@ -138,7 +138,6 @@ Static Function SldInic( cBancos, cPeriodo, dDtBase )
 	cQuery += " WHERE SE8SLD.D_E_L_E_T_ = '' "
 	cQuery += " AND   SE8SLD.E8_FILIAL = '" + xFilial( "SE8" ) + "' "
 	cQuery += " AND   SE8SLD.E8_DTSALAT <= '" + cDataAte + "' "
-	cQuery += " AND   SE8SLD.E8_SALATUA <> 0 "
 	cQuery += " AND   SE8SLD.E8_BANCO + SE8SLD.E8_AGENCIA + SE8SLD.E8_CONTA IN " + cBancos + " "
 	
 	cQuery += " GROUP BY SE8SLD.E8_BANCO, SE8SLD.E8_AGENCIA, SE8SLD.E8_CONTA ) "
@@ -580,7 +579,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery1 += " AND SED.D_E_L_E_T_ = '' "
 	cQuery1 += " AND SE5.D_E_L_E_T_ = '' "
 	cQuery1 += " AND SE5.E5_SITUACA NOT IN ('C') "
-	cQuery1 += " AND SE5.E5_TIPODOC IN ('VL') "
+	cQuery1 += " AND SE5.E5_TIPODOC IN ('VL','') "
 	
 	cQuery1 += " AND SE5.E5_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
 	
@@ -588,8 +587,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	
 	cQuery1 += " AND SE5.E5_BANCO + SE5.E5_AGENCIA + SE5.E5_CONTA IN " + cBancos + " "
 	
-	AutoGrLog( cQuery1 )
-	MostraErro()
+	MemoWrite( 'C:\TEMP\QUERY1.SQL', cQuery1 )
 	
 	// Query que monta os saldos realizados do Fluxo
 	cQuery2 += " SELECT "
@@ -605,8 +603,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery2 += " MOV_SE5.E5_NATUREZ,  "
 	cQuery2 += " MOV_SE5.ED_DESCRIC  "
 	
-	AutoGrLog( cQuery2 )
-	MostraErro()
+	MemoWrite( 'C:\TEMP\QUERY2.SQL', cQuery2 )
 	
 	// Executa a query
 	cAlias := MPSysOpenQuery( cQuery2 )
@@ -631,7 +628,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 		// Adiciona na lista do array que representa a pesquisa
 		aAdd( aAlias, oLine )
 		
-		// Verifica se a natureza já exite na lista de naurezas
+		// Verifica se a natureza já exite na lista de naturezas
 		// se não exitir inclui
 		If aScan( aSldReal, { | uItem | uItem[ 1 ] == AllTrim( ( cAlias )->E5_NATUREZ ) } ) == 0
 			
@@ -772,7 +769,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 	// Popula alias com saldos realizados da natureza
 	For nX := 1 To Len( aSldReal )
 		
-		RecLock( cAlias, ! DbSeek( aSldReal[ nX , 1 ] ) )
+		RecLock( cAlias, .T. )
 		
 		( cAlias )->NAT  := aSldReal[ nX , 1 ] + ' - ' + aSldReal[ nX , 2 ]
 		
@@ -786,9 +783,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		
 	Next nX
 	
-	AutoGrLog( "SELECT * FROM " + oTempTable:GetRealName() )
-	MostraErro()
-	
+	MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )	
 	
 Return cAlias
 

@@ -597,7 +597,7 @@ Static Function AddSaldo( oNatureza, cAlias, nMesBase )
 			// Atribui saldo ao array conforme mês e tipo de saldo e acumula o saldo total da natureza
 			oNatureza:aSaldos[ nX ] += (cAlias)->&( aTpSld[ nTpSld ] + StrZero( nX, 2 ) )
 			
-			nTotal := oNatureza:aSaldos[ nX ]
+			nTotal += oNatureza:aSaldos[ nX ]
 			
 		End If
 		
