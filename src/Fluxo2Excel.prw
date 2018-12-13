@@ -11,6 +11,14 @@ Quando o Período for Mensal a data inicial e final deve compreender o primeiro e
 @version P12
 @author TOTVS
 @since 30/10/2018
+@param, aParam, array, Parâmetros para montagem do fluxo de caixa
+1 - Mês limte para se considerar saldo realizado no fluxo anual
+2 - Alias da tabela temporária que serve de base do Fluxo
+3 - Array com o cabeçalho do Fluxo de caixa
+4 - Nível sintético de ingressos
+5 - Nível sintético de desembolsos
+6 - Local e Nome do Arquivo
+7 - Saldo inicial do Fluxo de caixa
 /*/
 User Function Fluxo2Excel( aParam )
 	

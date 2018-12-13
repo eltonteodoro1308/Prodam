@@ -197,7 +197,7 @@ Static Function GetBanco()
 	// Popula array a ser utilizado no componente
 	// de marcação de com a lista de bancos cadastrados
 	DbSelectArea( 'SA6' )
-	DbSetOrder( 1 )
+	SA6->( DbSetOrder( 1 ) )
 	SA6->( DbGoTop() )
 	
 	Do While ! SA6->( Eof() )
@@ -751,13 +751,14 @@ Class AliasLine
 	
 End Class
 
-/*/{Protheus.doc} New
+/*/{Protheus.doc} AliasLine:New
 Método construtor da classe AliasLine
 @project MAN0000038865_EF_002
 @type Method Rotina Específica
 @version P12
 @author TOTVS
 @since 30/10/2018
+@param nil, nil,nil
 /*/
 Method New( ) Class AliasLine
 	
@@ -806,7 +807,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 			
 		Next nY
 		
-		MsUnlock()
+		( cAlias )->( MsUnlock() )
 		
 	Next nX
 	
@@ -823,11 +824,11 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 			
 		Next nY
 		
-		MsUnlock()
+		( cAlias )->( MsUnlock() )
 		
 	Next nX
 	//TODO TIRAR ESTA LINHA
-	MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )
+	//MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )
 	
 Return cAlias
 
