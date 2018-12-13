@@ -162,7 +162,7 @@ Static Function SldInic( cBancos, cPeriodo, dDtBase )
 	
 	// Restaura ambiente
 	RestArea( aArea )
-	
+	MemoWrite( 'c:\temp\querysldinc.sql', cQuery )
 Return nRet
 
 /*/{Protheus.doc} GetBanco
@@ -461,7 +461,7 @@ Static Function GetSldPrev( dDtBase, cNatDe, cNatAte, aSldPrev )
 	cQuery += " AND   SED.ED_FILIAL = '" + xFilial( "SED" ) + "' "
 	cQuery += " AND   SE7.E7_ANO = '" + cAno + "' "
 	cQuery += " AND   SE7.E7_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
-	
+	MemoWrite( 'C:\TEMP\QUERYSLDPREV.SQL', cQuery )
 	// Executa a query
 	cAlias := MPSysOpenQuery( cQuery )
 	
@@ -787,6 +787,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 	Local nY         := 0
 	Local cAlias     := GetNextAlias()
 	Local oTempTable := FWTemporaryTable():New( cAlias )
+	Local lRecLock   := .T.
 	
 	oTemptable:SetFields( MontaEstr() )
 	
@@ -813,8 +814,10 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 	
 	// Popula alias com saldos realizados da natureza
 	For nX := 1 To Len( aSldReal )
+	
+		lRecLock = ! ( cAlias )->( DbSeek( aSldReal[ nX, 1 ] ) )
 		
-		RecLock( cAlias, .T. )
+		RecLock( cAlias, lRecLock )
 		
 		( cAlias )->NAT  := aSldReal[ nX , 1 ] + ' - ' + aSldReal[ nX , 2 ]
 		
