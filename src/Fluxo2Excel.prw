@@ -18,9 +18,7 @@ User Function Fluxo2Excel( aParam )
 	Local aArea       := GetArea()
 	Local aAreaAlias  := (cAlias)->(GetArea())
 	Local aCabec      := aParam[ 3 ]  //{}
-	Local cCabec      := ''
 	Local nMesBase    := aParam[ 1 ] // Month( dDataBase )
-	Local nMesCol     := 0
 	Local aLinEntrada := {}
 	Local aLinSaida   := {}
 	Local aIngresso   := {}
@@ -244,49 +242,6 @@ User Function Fluxo2Excel( aParam )
 		aSldInicial, aSldFinal, aParam[ 4 ], aParam[ 5 ], aParam[ 6 ] )
 	
 Return
-
-/*/{Protheus.doc} MesNum
-Função que localiza no nome da coluna o mês correspondente e retorna o número deste mês
-@project MAN0000038865_EF_002
-@type function Rotina Específica
-@version P12
-@author TOTVS
-@since 30/10/2018
-@param cColName, characters, Nome da Coluna
-@return return, Número correspondente ao mês localizado no nome da coluna
-/*/
-Static Function MesNum( cColName )
-	
-	Local aMeses := {}
-	Local nX     := 0
-	Local nRet   := 0
-	
-	aAdd( aMeses, 'JANEIRO'   )
-	aAdd( aMeses, 'FEVEREIRO' )
-	aAdd( aMeses, 'MARCO'     )
-	aAdd( aMeses, 'ABRIL'     )
-	aAdd( aMeses, 'MAIO'      )
-	aAdd( aMeses, 'JUNHO'     )
-	aAdd( aMeses, 'JULHO'     )
-	aAdd( aMeses, 'AGOSTO'    )
-	aAdd( aMeses, 'SETEMBRO'  )
-	aAdd( aMeses, 'OUTUBRO'  )
-	aAdd( aMeses, 'NOVEMBRO'  )
-	aAdd( aMeses, 'DEZEMBRO'  )
-	
-	For nX := 1 To Len( aMeses )
-		
-		If aMeses[ nX ] $ cColName
-			
-			nRet := nX
-			
-			Exit
-			
-		End If
-		
-	Next nX
-	
-Return nRet
 
 /*/{Protheus.doc} ToExcel
 Gera planilha do Excel com base nos dados coletados do Alias exibido no Fluxo de Caixa
@@ -568,7 +523,6 @@ Static Function AddSaldo( oNatureza, cAlias, nMesBase )
 	
 	Local nX     := 0
 	Local nTotal := 0
-	Local nSaldo := 0
 	Local aTpSld := { 'REAL0', 'ORC0' }
 	Local nTpSld := 1
 	

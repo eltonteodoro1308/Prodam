@@ -22,6 +22,15 @@ User Function FLXCXNAT()
 	Local aSldReal    := {}
 	Local nX          := 0
 	Local cAlias      := ''
+
+	// Se variável de banco vier vazia indica que nenhum banco foi selecionado
+	// ou foi clicado em cancelar na janela de seleção dos bancos assim a 
+	// rotina será encerrada sem executar nada	
+	If Empty( cBancos )
+		
+		Return
+		
+	End If
 	
 	// Popula Array com a lista de meses para
 	// ser utilizado na tela de parâmetro do Fluxo de Caixa
@@ -34,8 +43,8 @@ User Function FLXCXNAT()
 	Next nX
 	
 	// Popula array aRet com os parâmetros para gerar o fluxo de caixa
-	/* aRet[ 1 ] */aAdd( aParam, { 2, 'Tipo de Fluxo'           , '1' , { '1=DIÁRIO', '2=ANUAL' }, 90, '.T.', .F. } )
-	/* aRet[ 2 ] */aAdd( aParam, { 2, 'Considerar Realizado Até', '01', aMeses                   , 90, '.T.', .F. } )
+	/* aRet[ 1 ] */aAdd( aParam, { 2, 'Tipo de Fluxo'           , '1' , { '1=DIÁRIO', '2=ANUAL' }, 90, '.T.', .F.,                } )
+	/* aRet[ 2 ] */aAdd( aParam, { 2, 'Considerar Realizado Até', '01', aMeses                   , 90, '.T.', .F., "MV_PAR01='2'" } )
 	
 	/* aRet[ 3 ] */aAdd( aParam, { 1, 'Data Base'              , dDataBase                          ,         , '.T.'  ,     , '.T.', 90, .F. } )
 	/* aRet[ 4 ] */aAdd( aParam, { 1, 'Natureza De'            , Space( TamSx3( 'ED_CODIGO' )[ 1 ] ), '@!'    , '.T.'  ,'SED', '.T.', 90, .F. } )
@@ -43,7 +52,7 @@ User Function FLXCXNAT()
 	/* aRet[ 6 ] */aAdd( aParam, { 1, 'Nível de Ingressos'     , 000                                , '@E 999', '.T.'  ,     , '.T.', 90, .F. } )
 	/* aRet[ 7 ] */aAdd( aParam, { 1, 'Nível de Desembolsos'   , 000                                , '@E 999', '.T.'  ,     , '.T.', 90, .F. } )
 	/* aRet[ 8 ] */aAdd( aParam, { 1, 'Local e Nome do Arquivo', Space( 255 )                       , '@!'    , cValid ,     , '.T.', 90, .F. } )
-	
+
 	// Solicita preenchimento dos parâmetros pelo usuário
 	If ParamBox( aParam, 'Fluxo de Caixa por Natureza', @aRet,,,,,,, 'FLXCXNAT', .T., .T. )
 		
@@ -171,7 +180,9 @@ Static Function GetBanco()
 	Local oNO     := LoadBitmap( GetResources(),'LBNO' )
 	Local oDlg    := Nil
 	Local oBrowse := Nil
-	Local oBtnOk  := Nil
+	Local oBtnOk1 := Nil
+	Local oBtnOk2 := Nil
+	Local lCancela:= .F.
 	Local aCabec  := { '', 'Banco', 'Agência', 'Conta', 'Nome' }
 	Local aCabLen := { 20, 30, 30, 30, 50 }
 	Local aBrowse := {}
@@ -254,44 +265,56 @@ Static Function GetBanco()
 	
 	// Define botão OK da tela de marcação
 	// que encerra a tela e segue com o programa
-	oBtnOk := SButton():New( 173, 230, 1, { || oDlg:End() }, oDlg, .T. )
+	// e o botão de cancelar que encerra a aplicaçao sem executar nada
+	oBtnOk1 := SButton():New( 173, 200, 1, { || lCancela := .F., oDlg:End() }, oDlg, .T. )
+	oBtnOk2 := SButton():New( 173, 230, 2, { || lCancela := .T., oDlg:End() }, oDlg, .T. )
 	
 	ACTIVATE DIALOG oDlg CENTERED
 	
-	// Popula array auxiliar com os bancos marcados
-	For nX := 1 To Len( aBrowse )
+	// Verifica se foi clicado no botão cancela sai sem executar nenhuma ação
+	If ! lCancela
 		
-		If aBrowse[ nX, 1 ]
+		// Popula array auxiliar com os bancos marcados
+		For nX := 1 To Len( aBrowse )
 			
-			For nY := 2 To Len( aBrowse[ nX ] ) - 1
+			If aBrowse[ nX, 1 ]
 				
-				cAux += aBrowse[ nX, nY ]
+				For nY := 2 To Len( aBrowse[ nX ] ) - 1
+					
+					cAux += aBrowse[ nX, nY ]
+					
+				Next nY
 				
-			Next nY
+				aAdd( aAux, cAux )
+				
+				cAux := ''
+				
+			End If
 			
-			aAdd( aAux, cAux )
+		Next nX
+		
+		// Popula variável de retorno com a lista de bancos marcados
+		For nX := 1 To Len( aAux )
 			
-			cAux := ''
+			cRet += aAux[ nX ]
+			
+			If nX # Len( aAux )
+				
+				cRet += ','
+				
+			End If
+			
+		Next nX
+		
+		// Verifica se nenhum banco foi selecionado e assim exibe alerta e encerra aplicação
+		If ! Empty( aAux )
+			
+			// Formata lista de bancos em formato a ser utilizado na cláusula IN do SQL
+			cRet := FormatIn( cRet, ',' )
 			
 		End If
 		
-	Next nX
-	
-	// Popula variável de retorno com a lista de bancos marcados
-	For nX := 1 To Len( aAux )
-		
-		cRet += aAux[ nX ]
-		
-		If nX # Len( aAux )
-			
-			cRet += ','
-			
-		End If
-		
-	Next nX
-	
-	// Formata lista de bancos em formato a ser utilizado na cláusula IN do SQL
-	cRet := FormatIn( cRet, ',' )
+	End If
 	
 Return cRet
 
@@ -306,6 +329,8 @@ Função que faz a inversão da seleção ao clicar no cabeçalho da coluna de marcaçã
 @param nLinha, numérico, Linha posicionada no componente de marcação dos bancos
 /*/
 Static Function InvSelec( oBrowse, nLinha )
+	
+	Local nX := 0
 	
 	// Percorre array de marcação invertente a seleção
 	For nX := 1 To Len( oBrowse:aArray )
@@ -333,7 +358,6 @@ Funçao que que monta o cabeçalho das colunas do Fluxo de Caixa conforme o tipo d
 /*/
 Static Function MontaCabec( aCabec, cPeriodo, nMesReal, dDtBase )
 	
-	Local dFirstDate := FirstDate( dDtBase )
 	Local cTpSld     := ''
 	Local cDate      := ''
 	Local nX         := 0
@@ -560,7 +584,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery1 += " ( CASE "
 	
 	cQuery1 += " WHEN ( SED.ED_XINGDES = '1' AND "
-	cQuery1 += " SE5.E5_RECPAG = 'R') OR "	
+	cQuery1 += " SE5.E5_RECPAG = 'R') OR "
 	cQuery1 += " ( SED.ED_XINGDES = '2' AND "
 	cQuery1 += " SE5.E5_RECPAG = 'P') THEN SE5.E5_VALOR "
 	
@@ -578,15 +602,35 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery1 += " WHERE SE5.E5_FILIAL = '" + xFilial('SE5') + "' "
 	cQuery1 += " AND SED.D_E_L_E_T_ = '' "
 	cQuery1 += " AND SE5.D_E_L_E_T_ = '' "
-	cQuery1 += " AND SE5.E5_SITUACA NOT IN ('C') "
-	cQuery1 += " AND SE5.E5_TIPODOC IN ('VL','') "
+	cQuery1 += " AND SE5.E5_SITUACA <> 'C' "
+	cQuery1 += " AND SE5.E5_NUMCHEQ <> '%*' "
+	cQuery1 += " AND SE5.E5_TIPODOC NOT IN ('DC','JR','MT','BA','MT','CM','D2','J2','M2','C2','V2','CX','CP','TL') "
+	cQuery1 += " AND ( ( SE5.E5_TIPODOC = 'VL' AND SE5.E5_TIPO ='CH' AND SE5.E5_RECPAG ='P' ) OR SE5.E5_TIPO <> 'CH') "
+	
+	If SuperGetMV("MV_DTMOVRE",.T.,.F.)
+		
+		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DATA Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA087A' Or SE5.E5_ORIGEM ='FINA070' Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA200' Or SE5.E5_ORIGEM ='FINA740' Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA100' Or SE5.E5_ORIGEM ='FINA430' Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA435' ) "
+		
+	Else
+		
+		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DATA Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA087A' Or SE5.E5_ORIGEM ='FINA070' Or"
+		cQuery1 += " SE5.E5_ORIGEM ='FINA200' Or SE5.E5_ORIGEM ='FINA740') "
+		
+	End If
+	
+	cQuery1 += " AND SE5.E5_ORIGEM <> 'CNTA090' " 
 	
 	cQuery1 += " AND SE5.E5_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
 	
 	cQuery1 += " AND SE5.E5_DATA BETWEEN '" + cDataDe + "' AND '" + cDataAte + "' "
 	
 	cQuery1 += " AND SE5.E5_BANCO + SE5.E5_AGENCIA + SE5.E5_CONTA IN " + cBancos + " "
-	
+	//TODO TIRAR ESTA LINHA
 	MemoWrite( 'C:\TEMP\QUERY1.SQL', cQuery1 )
 	
 	// Query que monta os saldos realizados do Fluxo
@@ -602,7 +646,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery2 += " GROUP BY MOV_SE5.E5_DATA, "
 	cQuery2 += " MOV_SE5.E5_NATUREZ,  "
 	cQuery2 += " MOV_SE5.ED_DESCRIC  "
-	
+	//TODO TIRAR ESTA LINHA
 	MemoWrite( 'C:\TEMP\QUERY2.SQL', cQuery2 )
 	
 	// Executa a query
@@ -782,8 +826,8 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		MsUnlock()
 		
 	Next nX
-	
-	MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )	
+	//TODO TIRAR ESTA LINHA
+	MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )
 	
 Return cAlias
 
