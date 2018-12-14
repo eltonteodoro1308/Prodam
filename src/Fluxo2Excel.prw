@@ -285,8 +285,8 @@ Static Function ToExcel( aCabec, aIngresso, aLinEntrada, aDesembolso, aLinSaida,
 	Local cNatAux    := ''
 	Local aArea      := SED->( GetArea() )
 	Local aRet       := { cFile, nNivIng, nNivDes }
-		
-	cArquivo := aRet[1]
+	
+	cArquivo := AllTrim( aRet[1] )
 	
 	If Upper( AllTrim( Atail( StrTokArr2( cArquivo, '.', .T. ) ) ) ) <> 'XML'
 		
@@ -512,7 +512,7 @@ Static Function GetSaldos( oNatureza, cAlias, nMesBase )
 		
 		AddSaldo( oNatureza, cAlias, nMesBase )
 		
-	End If	
+	End If
 	
 Return
 
