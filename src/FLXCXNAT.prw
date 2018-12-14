@@ -22,10 +22,10 @@ User Function FLXCXNAT()
 	Local aSldReal    := {}
 	Local nX          := 0
 	Local cAlias      := ''
-
+	
 	// Se variável de banco vier vazia indica que nenhum banco foi selecionado
-	// ou foi clicado em cancelar na janela de seleção dos bancos assim a 
-	// rotina será encerrada sem executar nada	
+	// ou foi clicado em cancelar na janela de seleção dos bancos assim a
+	// rotina será encerrada sem executar nada
 	If Empty( cBancos )
 		
 		Return
@@ -52,7 +52,7 @@ User Function FLXCXNAT()
 	/* aRet[ 6 ] */aAdd( aParam, { 1, 'Nível de Ingressos'     , 000                                , '@E 999', '.T.'  ,     , '.T.', 90, .F. } )
 	/* aRet[ 7 ] */aAdd( aParam, { 1, 'Nível de Desembolsos'   , 000                                , '@E 999', '.T.'  ,     , '.T.', 90, .F. } )
 	/* aRet[ 8 ] */aAdd( aParam, { 1, 'Local e Nome do Arquivo', Space( 255 )                       , '@!'    , cValid ,     , '.T.', 90, .F. } )
-
+	
 	// Solicita preenchimento dos parâmetros pelo usuário
 	If ParamBox( aParam, 'Fluxo de Caixa por Natureza', @aRet,,,,,,, 'FLXCXNAT', .T., .T. )
 		
@@ -157,6 +157,9 @@ Static Function SldInic( cBancos, cPeriodo, dDtBase )
 	// Atribui a variável de retorno o Saldo Inicial do Período
 	nRet := ( cAlias )->E8_SALATUA
 	
+	// Ajuste o saldo inicial
+	nRet := AjSldInic( nRet, DtoC( StoD( cDataAte ) ) )
+		
 	// Fecha alias temporário
 	( cAlias )->( DbCloseArea( ) )
 	
@@ -623,7 +626,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 		
 	End If
 	
-	cQuery1 += " AND SE5.E5_ORIGEM <> 'CNTA090' " 
+	cQuery1 += " AND SE5.E5_ORIGEM <> 'CNTA090' "
 	
 	cQuery1 += " AND SE5.E5_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
 	
@@ -814,12 +817,12 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 	
 	// Popula alias com saldos realizados da natureza
 	For nX := 1 To Len( aSldReal )
-	
+		
 		lRecLock = ! ( cAlias )->( DbSeek( aSldReal[ nX, 1 ] ) )
 		
-		RecLock( cAlias, lRecLock )
+		lRec := RecLock( cAlias, lRecLock )
 		
-		( cAlias )->NAT  := aSldReal[ nX , 1 ] + ' - ' + aSldReal[ nX , 2 ]
+		( cAlias )->NAT  := aSldReal[ nX , 1 ] + ' - ' + NoAcento( aSldReal[ nX , 2 ] )
 		
 		For nY := 1 To Len( aSldReal[ nX, 4 ] )
 			
@@ -831,8 +834,8 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		
 	Next nX
 	//TODO TIRAR ESTA LINHA
-	//MemoWrite( 'C:\TEMP\QUERYTEMP.SQL', "SELECT * FROM " + oTempTable:GetRealName() )
-	
+	AutoGrLog( "SELECT * FROM " + oTempTable:GetRealName() )
+	MostraErro()
 Return cAlias
 
 /*/{Protheus.doc} MontaEstr
@@ -859,3 +862,29 @@ Static Function MontaEstr()
 	Next nX
 	
 Return aRet
+
+/*/{Protheus.doc} AjSldInic
+Monta array com a estrutura do alias da tabela temporária
+@project MAN0000038865_EF_002
+@type function Rotina Específica
+@version P12
+@author TOTVS
+@since 30/10/2018
+@param nSaldo, numeric, Saldo inicial constante na tabela SE8
+@param cReferencia, numeric, Dia de referência do saldo inicial lido na SE8
+@return numeric, Saldo Inicial que consta no formulário
+/*/
+Static Function AjSldInic( nSaldo, cReferencia )
+	
+	Local nRet := nSaldo
+	
+	DEFINE MSDIALOG oDlg TITLE "SALDO BANCÁRIO EM " + cReferencia FROM 000, 000  TO 100, 300 COLORS 0, 16777215 PIXEL
+	
+	TGet():New( 015, 015, { | u | If( PCount() == 0, nRet, nRet := u ) },oDlg, ;
+		130, 010, "@E 9,999,999,999,999.99",, 0, 16777215,,.F.,,.T.,,.F.,,.F.,.F.,,.F.,.F. ,,"nRet",,,,.T.  )
+	
+	SButton():New( 035, 105, 1, { || oDlg:End() }, oDlg, .T. )
+	
+	ACTIVATE MSDIALOG oDlg CENTERED
+	
+Return nRet
