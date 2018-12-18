@@ -159,13 +159,13 @@ Static Function SldInic( cBancos, cPeriodo, dDtBase )
 	
 	// Ajuste o saldo inicial
 	nRet := AjSldInic( nRet, DtoC( StoD( cDataAte ) ) )
-		
+	
 	// Fecha alias temporário
 	( cAlias )->( DbCloseArea( ) )
 	
 	// Restaura ambiente
 	RestArea( aArea )
-	MemoWrite( 'c:\temp\querysldinc.sql', cQuery )
+	MemoWrite( 'c:\temp\query.sld.inic.sql', cQuery )
 Return nRet
 
 /*/{Protheus.doc} GetBanco
@@ -464,7 +464,7 @@ Static Function GetSldPrev( dDtBase, cNatDe, cNatAte, aSldPrev )
 	cQuery += " AND   SED.ED_FILIAL = '" + xFilial( "SED" ) + "' "
 	cQuery += " AND   SE7.E7_ANO = '" + cAno + "' "
 	cQuery += " AND   SE7.E7_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
-	MemoWrite( 'C:\TEMP\QUERYSLDPREV.SQL', cQuery )
+	
 	// Executa a query
 	cAlias := MPSysOpenQuery( cQuery )
 	
@@ -578,7 +578,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	// Query de busca na base os movimentos bancário que compõem o movimento
 	cQuery1 += " SELECT "
 	
-	cQuery1 += " SUBSTRING(SE5.E5_DATA, 1, " + cTamDt + " ) E5_DATA, "
+	cQuery1 += " SUBSTRING(SE5.E5_DTDISPO, 1, " + cTamDt + " ) E5_DTDISPO, "
 	cQuery1 += " SE5.E5_NATUREZ, "
 	cQuery1 += " SED.ED_DESCRIC, "
 	cQuery1 += " SED.ED_XINGDES, "
@@ -610,9 +610,10 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 	cQuery1 += " AND SE5.E5_TIPODOC NOT IN ('DC','JR','MT','BA','MT','CM','D2','J2','M2','C2','V2','CX','CP','TL') "
 	cQuery1 += " AND ( ( SE5.E5_TIPODOC = 'VL' AND SE5.E5_TIPO ='CH' AND SE5.E5_RECPAG ='P' ) OR SE5.E5_TIPO <> 'CH') "
 	
+	// Seguindo mesma regra do relatório FINR620
 	If SuperGetMV("MV_DTMOVRE",.T.,.F.)
 		
-		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DATA Or"
+		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DTDISPO Or"
 		cQuery1 += " SE5.E5_ORIGEM ='FINA087A' Or SE5.E5_ORIGEM ='FINA070' Or"
 		cQuery1 += " SE5.E5_ORIGEM ='FINA200' Or SE5.E5_ORIGEM ='FINA740' Or"
 		cQuery1 += " SE5.E5_ORIGEM ='FINA100' Or SE5.E5_ORIGEM ='FINA430' Or"
@@ -620,38 +621,36 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 		
 	Else
 		
-		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DATA Or"
+		cQuery1 += " AND ( SE5.E5_VENCTO <= SE5.E5_DTDISPO Or"
 		cQuery1 += " SE5.E5_ORIGEM ='FINA087A' Or SE5.E5_ORIGEM ='FINA070' Or"
 		cQuery1 += " SE5.E5_ORIGEM ='FINA200' Or SE5.E5_ORIGEM ='FINA740') "
 		
 	End If
 	
-	cQuery1 += " AND SE5.E5_ORIGEM <> 'CNTA090' "
+	//cQuery1 += " AND SE5.E5_ORIGEM <> 'CNTA090' "
 	
 	cQuery1 += " AND SE5.E5_NATUREZ BETWEEN '" + cNatDe + "' AND '" + cNatAte + "' "
 	
-	cQuery1 += " AND SE5.E5_DATA BETWEEN '" + cDataDe + "' AND '" + cDataAte + "' "
+	cQuery1 += " AND SE5.E5_DTDISPO BETWEEN '" + cDataDe + "' AND '" + cDataAte + "' "
 	
 	cQuery1 += " AND SE5.E5_BANCO + SE5.E5_AGENCIA + SE5.E5_CONTA IN " + cBancos + " "
 	//TODO TIRAR ESTA LINHA
-	MemoWrite( 'C:\TEMP\QUERY1.SQL', cQuery1 )
-	
+	MemoWrite( 'c:/temp/cQuery1.sql', cQuery1 )
 	// Query que monta os saldos realizados do Fluxo
 	cQuery2 += " SELECT "
 	
-	cQuery2 += " MOV_SE5.E5_DATA, "
+	cQuery2 += " MOV_SE5.E5_DTDISPO, "
 	cQuery2 += " MOV_SE5.E5_NATUREZ, "
 	cQuery2 += " MOV_SE5.ED_DESCRIC, "
 	cQuery2 += " SUM( MOV_SE5.E5_VALOR ) E5_VALOR "
 	
 	cQuery2 += " FROM (" + cQuery1 + ") MOV_SE5 "
 	
-	cQuery2 += " GROUP BY MOV_SE5.E5_DATA, "
+	cQuery2 += " GROUP BY MOV_SE5.E5_DTDISPO, "
 	cQuery2 += " MOV_SE5.E5_NATUREZ,  "
 	cQuery2 += " MOV_SE5.ED_DESCRIC  "
 	//TODO TIRAR ESTA LINHA
-	MemoWrite( 'C:\TEMP\QUERY2.SQL', cQuery2 )
-	
+	MemoWrite( 'c:/temp/cQuery2.sql', cQuery2 )
 	// Executa a query
 	cAlias := MPSysOpenQuery( cQuery2 )
 	
@@ -666,7 +665,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 		oLine := AliasLine():New()
 		
 		// Inclui valores aos dados correspondentes
-		oLine:E5_DATA    := AllTrim( ( cAlias )->E5_DATA    )
+		oLine:E5_DTDISPO    := AllTrim( ( cAlias )->E5_DTDISPO    )
 		oLine:E5_NATUREZ := AllTrim( ( cAlias )->E5_NATUREZ )
 		oLine:ED_DESCRIC := AllTrim( ( cAlias )->ED_DESCRIC )
 		oLine:ED_XINGDES := Posicione( 'SED', 1, xFilial( 'SED' ) + AllTrim( ( cAlias )->E5_NATUREZ ), 'ED_XINGDES' )
@@ -710,7 +709,7 @@ Static Function GetSldReal( cPeriodo, dDtBase, cNatDe, cNatAte, aSldReal, cBanco
 			
 			nPos := aScan( aAlias, { | oLine |;
 				oLine:E5_NATUREZ == aSldReal[ nX, 1 ] .And.;
-				oLine:E5_DATA == cSeek } )
+				oLine:E5_DTDISPO == cSeek } )
 			
 			If nPos == 0
 				
@@ -744,7 +743,7 @@ Classe que representa um linha na pesquisa de saldos realizados
 /*/
 Class AliasLine
 	
-	Data E5_DATA
+	Data E5_DTDISPO
 	Data E5_NATUREZ
 	Data ED_DESCRIC
 	Data ED_XINGDES
@@ -765,7 +764,7 @@ Método construtor da classe AliasLine
 /*/
 Method New( ) Class AliasLine
 	
-	::E5_DATA    := ''
+	::E5_DTDISPO := ''
 	::E5_NATUREZ := ''
 	::ED_DESCRIC := ''
 	::ED_XINGDES := ''
@@ -791,8 +790,10 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 	Local cAlias     := GetNextAlias()
 	Local oTempTable := FWTemporaryTable():New( cAlias )
 	Local lRecLock   := .T.
+	Local lRec       := .T.
+	Local lVazia     := .T.
 	
-	oTemptable:SetFields( MontaEstr() )
+	oTempTable:SetFields( MontaEstr() )
 	
 	oTempTable:AddIndex( '01', { 'NAT' } )
 	
@@ -803,7 +804,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		
 		RecLock( cAlias, .T. )
 		
-		( cAlias )->NAT  := aSldPrev[ nX , 1 ] + ' - ' + aSldPrev[ nX , 2 ]
+		( cAlias )->NAT  := aSldPrev[ nX , 1 ] + ' - ' + NoAcento( aSldPrev[ nX , 2 ] )
 		
 		For nY := 1 To Len( aSldPrev[ nX, 4 ] )
 			
@@ -815,14 +816,37 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		
 	Next nX
 	
+	// Caso esteja usando Fluxo Diário a tabela temporária só
+	// é populada com o saldos realizado assim não cabe fazer DbSeek
+	// para localizar a Natureza e sim incluí-la direto pois a tabela
+	// estará vazia
+	lVazia := ( cAlias )->( LastRec() ) = 0
+	
 	// Popula alias com saldos realizados da natureza
 	For nX := 1 To Len( aSldReal )
 		
-		lRecLock = ! ( cAlias )->( DbSeek( aSldReal[ nX, 1 ] ) )
+		// Verifica se efetua o RecLock
+		//		If ! lVazia
+		//
+		//			lRecLock = ! ( cAlias )->( DbSeek( aSldReal[ nX, 1 ] ) )
+		//
+		//		End If
+		
+		If ! lVazia
+			
+			lRecLock := aScan( aSldPrev, { |X| X[ 1 ] == aSldReal[ nX, 1 ] } ) == 0
+			
+			If ! lRecLock
+				
+				( cAlias )->( DbSeek( aSldReal[ nX, 1 ] ) )
+				
+			End If
+			
+		End If
 		
 		lRec := RecLock( cAlias, lRecLock )
 		
-		( cAlias )->NAT  := aSldReal[ nX , 1 ] + ' - ' + NoAcento( aSldReal[ nX , 2 ] )
+		( cAlias )->NAT  := AllTrim( aSldReal[ nX , 1 ] ) + ' - ' + AllTrim( NoAcento( aSldReal[ nX , 2 ] ) )
 		
 		For nY := 1 To Len( aSldReal[ nX, 4 ] )
 			
@@ -833,9 +857,7 @@ Static Function MontaAlias( aSldPrev, aSldReal )
 		( cAlias )->( MsUnlock() )
 		
 	Next nX
-	//TODO TIRAR ESTA LINHA
-	AutoGrLog( "SELECT * FROM " + oTempTable:GetRealName() )
-	MostraErro()
+	
 Return cAlias
 
 /*/{Protheus.doc} MontaEstr
